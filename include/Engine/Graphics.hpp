@@ -13,7 +13,7 @@ namespace mall
     public:
         enum class DefaultRenderPass
         {
-            eDeferred = 1,
+            eGeometry = 1,
             eLighting,
             eForward,
         };
@@ -54,7 +54,7 @@ namespace mall
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         void writeTexture(const void* const pData, const Cutlass::HTexture& handle);
 
-        Cutlass::HGraphicsPipeline createGraphicsPipeline(
+        Cutlass::HGraphicsPipeline getGraphicsPipeline(
             const Cutlass::GraphicsPipelineInfo& gpi,
             const uint32_t windowID = 0);
 
@@ -101,11 +101,13 @@ namespace mall
             Cutlass::HTexture finalRT;
             Cutlass::HTexture depthBuffer;
 
-            RenderPass deferredPass;
+            RenderPass geometryPass;
             RenderPass lightingPass;
             RenderPass forwardPass;
             std::map<uint32_t, RenderPass> additionalPasses;
             uint32_t nextPassID;
+            std::unordered_map<Cutlass::GraphicsPipelineInfo, Cutlass::HGraphicsPipeline> graphicsPipelines;
+
 
             Cutlass::HRenderPass presentPass;
             Cutlass::HGraphicsPipeline presentPipeline;

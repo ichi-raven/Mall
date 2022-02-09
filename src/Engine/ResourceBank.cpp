@@ -384,3 +384,4 @@ namespace mall
         model_out.material.textures.insert(model_out.material.textures.end(), textures.begin(), textures.end());
     }
 }  // namespace mall
+

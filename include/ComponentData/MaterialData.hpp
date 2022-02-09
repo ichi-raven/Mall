@@ -2,6 +2,7 @@
 #define MALL_COMPONENTDATA_MATERIALDATA_HPP_
 
 #include <Cutlass/Texture.hpp>
+#include <Cutlass/GraphicsPipeline.hpp>
 #include <MVECS/IComponentData.hpp>
 #include <string>
 

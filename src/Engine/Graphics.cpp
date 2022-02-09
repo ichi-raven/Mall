@@ -73,7 +73,7 @@ namespace mall
         {  // initialize each pass
 
             {  // geometry
-                auto& rp = window.deferredPass;
+                auto& rp = window.geometryPass;
                 Cutlass::RenderPassInfo rpi({window.gBuffer.albedo, window.gBuffer.normal, window.gBuffer.worldPos, window.gBuffer.metalic, window.gBuffer.roughness}, window.depthBuffer);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
@@ -199,13 +199,22 @@ namespace mall
         assert(res == Cutlass::Result::eSuccess || !"failed to write data to texture!");
     }
 
-    Cutlass::HGraphicsPipeline Graphics::createGraphicsPipeline(
+    Cutlass::HGraphicsPipeline Graphics::getGraphicsPipeline(
         const Cutlass::GraphicsPipelineInfo& gpi,
         const uint32_t windowID)
     {
+        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+
+        auto&& iter = window.graphicsPipelines.find(gpi);
+
+        if (iter != window.graphicsPipelines.end())
+            return iter->second;
+
         Cutlass::HGraphicsPipeline handle;
         auto&& res = mpContext->createGraphicsPipeline(gpi, handle);
         assert(res == Cutlass::Result::eSuccess || !"failed to create graphics pipeline!");
+        window.graphicsPipelines.emplace(gpi, handle);
         return handle;
     }
 
@@ -224,8 +233,8 @@ namespace mall
 
         switch (passID)
         {
-            case DefaultRenderPass::eDeferred:
-                return window.deferredPass.renderPass;
+            case DefaultRenderPass::eGeometry:
+                return window.geometryPass.renderPass;
                 break;
             case DefaultRenderPass::eLighting:
                 return window.lightingPass.renderPass;
@@ -266,8 +275,8 @@ namespace mall
 
         switch (passID)
         {
-            case DefaultRenderPass::eDeferred:
-                mpContext->updateCommandBuffer(cl, window.deferredPass.command);
+            case DefaultRenderPass::eGeometry:
+                mpContext->updateCommandBuffer(cl, window.geometryPass.command);
                 break;
             case DefaultRenderPass::eLighting:
                 mpContext->updateCommandBuffer(cl, window.lightingPass.command);
@@ -296,7 +305,7 @@ namespace mall
     {
         for (const auto& window : mWindows)
         {
-            mpContext->execute(window.deferredPass.command);
+            mpContext->execute(window.geometryPass.command);
             mpContext->execute(window.lightingPass.command);
             mpContext->execute(window.forwardPass.command);
 
