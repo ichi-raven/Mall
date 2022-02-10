@@ -1,7 +1,7 @@
 
 //attention : (bx, spacey) == set y, binding x (regardless of register type)
 
-static const int MAX_BONE_NUM = 128;
+static const int MaxBoneNum = 128;
 
 cbuffer ModelCB : register(b0, space0)
 {
@@ -10,14 +10,14 @@ cbuffer ModelCB : register(b0, space0)
 	float4x4 proj;
 	float receiveShadow;
 	float lighting;
-	float2 padding2;
+	float2 paddingModelCB;
 };
 
 cbuffer BoneCB : register(b1, space0)
 {
-	uint useBone;//if use bone 1 else 0
-	float3 padding;
-	float4x4 boneMat[MAX_BONE_NUM];
+	uint useBone;//if use bone non-zero else zero
+	float3 paddingBoneCB;
+	float4x4 boneMat[MaxBoneNum];
 }
 
 //combined image sampler(set : 1, binding : 0)

@@ -9,17 +9,17 @@ namespace mall
 {
     struct TransformData : public mvecs::IComponentData
     {
-        glm::vec3 mPos;
-        glm::vec3 mVel;
-        glm::vec3 mAcc;
+        glm::vec3 pos;
+        glm::vec3 vel;
+        glm::vec3 acc;
 
-        glm::vec3 mScale;
+        glm::vec3 scale;
 
-        glm::quat mRotation;
-        float mRotVel;
-        float mRotAcc;
+        glm::quat rotation;
+        float rotVel;
+        float rotAcc;
 
-        glm::mat4 mWorld;
+        // glm::mat4 world;
     };
 }  // namespace mall
 

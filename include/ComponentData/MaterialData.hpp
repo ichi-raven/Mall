@@ -18,6 +18,8 @@ namespace mall
             std::string name;
             std::string path;
         };
+        
+        COMPONENT_DATA(MaterialData)
 
         TUArray<Texture> textures;
     };
