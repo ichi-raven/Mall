@@ -47,7 +47,7 @@ namespace mall
     }
 
     ResourceBank::ResourceBank(const std::shared_ptr<Cutlass::Context>& context)
-        : mContext(context)
+        : mpContext(context)
     {
     }
 
@@ -57,15 +57,17 @@ namespace mall
         mSkeletalModelCacheMap.clear();
         mTextureCacheMap.clear();
 
-        mContext.reset();
+        mpContext.reset();
     }
 
     bool ResourceBank::load(std::string_view path, MeshData& meshData, MaterialData& materialData)
     {
         auto&& strPath = std::string(path);
         auto&& iter    = mModelCacheMap.find(strPath);
+
         if (iter == mModelCacheMap.end())
         {
+            iter        = mModelCacheMap.emplace(strPath, Model()).first;
             auto& model = iter->second;
             model.path  = strPath;
 
@@ -79,7 +81,6 @@ namespace mall
             }
 
             processNode(model.pScene.value()->mRootNode, model);
-            iter = mModelCacheMap.emplace(model.path, model).first;
         }
         std::cerr << "all data has been loaded!\n";
 
@@ -93,9 +94,11 @@ namespace mall
             {
                 Cutlass::BufferInfo bi;
                 bi.setVertexBuffer<MeshData::Vertex>(mesh.vertices.size());
-                mContext->createBuffer(bi, mesh.VB);
+                mpContext->createBuffer(bi, mesh.VB);
+                mpContext->writeBuffer(mesh.vertices.size() * sizeof(MeshData::Vertex), mesh.vertices.data(), mesh.VB);
                 bi.setIndexBuffer<std::uint32_t>(mesh.indices.size());
-                mContext->createBuffer(bi, mesh.IB);
+                mpContext->createBuffer(bi, mesh.IB);
+                mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
             }
 
             materialData.textures.create(model.material.textures.data(), model.material.textures.size());
@@ -110,6 +113,7 @@ namespace mall
         auto&& iter    = mSkeletalModelCacheMap.find(strPath);
         if (iter == mSkeletalModelCacheMap.end())
         {
+            iter        = mSkeletalModelCacheMap.emplace(strPath, Model()).first;
             auto& model = iter->second;
             model.path  = strPath;
 
@@ -124,7 +128,6 @@ namespace mall
 
             model.skeleton = SkeletalMeshData::Skeleton();
             processNode(model.pScene.value()->mRootNode, model);
-            iter = mSkeletalModelCacheMap.emplace(model.path, model).first;
         }
         std::cerr << "all data has been loaded!\n";
 
@@ -142,9 +145,11 @@ namespace mall
             {
                 Cutlass::BufferInfo bi;
                 bi.setVertexBuffer<MeshData::Vertex>(mesh.vertices.size());
-                mContext->createBuffer(bi, mesh.VB);
+                mpContext->createBuffer(bi, mesh.VB);
+                mpContext->writeBuffer(mesh.vertices.size() * sizeof(MeshData::Vertex), mesh.vertices.data(), mesh.VB);
                 bi.setIndexBuffer<std::uint32_t>(mesh.indices.size());
-                mContext->createBuffer(bi, mesh.IB);
+                mpContext->createBuffer(bi, mesh.IB);
+                mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
             }
 
             materialData.textures.create(model.material.textures.data(), model.material.textures.size());
@@ -168,7 +173,7 @@ namespace mall
                 if (texIter == mTextureCacheMap.end())
                 {
                     Cutlass::HTexture texture;
-                    auto res = mContext->createTextureFromFile(path.data(), texture);
+                    auto res = mpContext->createTextureFromFile(path.data(), texture);
                     if (res != Cutlass::Result::eSuccess)
                     {
                         std::cerr << "failed to load texture!\npath : " << path << "\n";
@@ -192,7 +197,6 @@ namespace mall
     void ResourceBank::processNode(const aiNode* node, Model& model_out)
     {
         auto& scene = model_out.pScene.value();
-
         for (uint32_t i = 0; i < node->mNumMeshes; i++)
         {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
@@ -268,7 +272,7 @@ namespace mall
             {
                 aiFace face = mesh->mFaces[i];
                 for (unsigned int j = 0; j < face.mNumIndices; j++)
-                    indices.push_back(face.mIndices[j]);
+                    indices.emplace_back(face.mIndices[j]);
             }
         }
 
@@ -277,7 +281,6 @@ namespace mall
         if (mesh->mMaterialIndex >= 0 && mesh->mMaterialIndex < scene->mNumMaterials)
         {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-            std::vector<Cutlass::HTexture> textures;
             loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse", model_out);
         }
 
@@ -358,10 +361,10 @@ namespace mall
             {
                 Cutlass::TextureInfo ti;
                 ti.setSRTex2D(embeddedTexture->mWidth, embeddedTexture->mHeight, true);
-                Cutlass::Result res = mContext->createTexture(ti, texture.handle);
+                Cutlass::Result res = mpContext->createTexture(ti, texture.handle);
                 if (res != Cutlass::Result::eSuccess)
                     assert(!"failed to create embedded texture!");
-                res = mContext->writeTexture(embeddedTexture->pcData, texture.handle);
+                res = mpContext->writeTexture(embeddedTexture->pcData, texture.handle);
                 if (res != Cutlass::Result::eSuccess)
                     assert(!"failed to write to embedded texture!");
             }
@@ -370,7 +373,7 @@ namespace mall
                 std::string filename = std::regex_replace(path.C_Str(), std::regex("\\\\"), "/");
                 filename             = model_out.path.substr(0, model_out.path.find_last_of("/\\")) + '/' + filename;
                 // std::wstring filenamews = std::wstring(filename.begin(), filename.end());
-                Cutlass::Result res = mContext->createTextureFromFile(filename.c_str(), texture.handle);
+                Cutlass::Result res = mpContext->createTextureFromFile(filename.c_str(), texture.handle);
                 if (res != Cutlass::Result::eSuccess)
                 {
                     std::cerr << "failed to load texture!\npath : " << filename << "\n";
@@ -384,4 +387,3 @@ namespace mall
         model_out.material.textures.insert(model_out.material.textures.end(), textures.begin(), textures.end());
     }
 }  // namespace mall
-

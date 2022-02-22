@@ -80,7 +80,7 @@ namespace mall
 
         std::unordered_map<std::string, Cutlass::HTexture> mTextureCacheMap;
 
-        std::shared_ptr<Cutlass::Context> mContext;
+        std::shared_ptr<Cutlass::Context> mpContext;
 
         Assimp::Importer mImporter;
     };

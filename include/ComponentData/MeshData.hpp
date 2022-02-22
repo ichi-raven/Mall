@@ -34,22 +34,34 @@ namespace mall
 
         struct Mesh
         {
-            Mesh()
-            {
-                vertices.reserve(32);
-                indices.reserve(32);
-            };
-
             std::vector<Vertex> vertices;
             std::vector<std::uint32_t> indices;
             Cutlass::HBuffer VB;
             Cutlass::HBuffer IB;
         };
 
+        struct RenderingInfo
+        {
+            struct SceneCBParam
+            {
+                glm::mat4 world;
+                glm::mat4 view;
+                glm::mat4 proj;
+                float receiveShadow;
+                float lighting;
+                uint useBone;
+                uint padding;
+            };
+
+            Cutlass::HBuffer sceneCB;
+        };
+
         COMPONENT_DATA(MeshData)
 
         bool loaded;
         TUArray<Mesh> meshes;
+
+        RenderingInfo renderingInfo;
     };
 }  // namespace mall
 

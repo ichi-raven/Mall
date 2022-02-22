@@ -13,7 +13,7 @@ layout(location = 0) out vec4 outColor;
 vec4 gaussianBlur(sampler2D s, vec2 uv)
 {
     const float delta = 0.0006f;
-     
+    
     vec4 color =
     0.0625 * texture(s, vec2(uv.x - delta, uv.y - delta)) +
     0.125  * texture(s, vec2(uv.x,         uv.y - delta)) +

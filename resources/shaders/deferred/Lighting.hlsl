@@ -76,6 +76,7 @@ float4 PSMain(VSOutput input) : SV_Target0
 	float4 normal = normalTex.Sample(normalSampler, input.uv);
 	float4 worldPos = worldPosTex.Sample(worldPosSampler, input.uv);
 
+
 	if(normal.w == 0)
 		return albedo;
 

@@ -12,6 +12,8 @@ namespace mall
 {
     struct SkeletalMeshData : public MeshData
     {
+        COMPONENT_DATA(SkeletalMeshData)
+
         struct Bone
         {
             glm::mat4 offset;
@@ -29,9 +31,34 @@ namespace mall
             glm::mat4 globalInverse;
         };
 
+        struct RenderingInfo
+        {
+            struct SceneCBParam
+            {
+                glm::mat4 world;
+                glm::mat4 view;
+                glm::mat4 proj;
+                float receiveShadow;
+                float lighting;
+                uint useBone;
+                uint padding;
+            };
+
+            constexpr static std::size_t MaxBoneNum = 128;
+            struct BoneCBParam
+            {
+                glm::mat4 boneMat[MaxBoneNum];
+            };
+
+            Cutlass::HBuffer sceneCB;
+            Cutlass::HBuffer boneCB;
+        };
+
         uint32_t animationIndex;
         TUPointer<Skeleton> skeleton;
         float timeScale;
+
+        RenderingInfo renderingInfo;
     };
 }  // namespace mall
 

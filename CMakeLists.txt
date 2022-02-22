@@ -16,7 +16,7 @@ include_directories(
    glm
    stb
    cutlass
-   assimp
+   "/usr/local/include/assimp" #AUR's assimp is broken
    ${BULLET_INCLUDE_DIR}
    mvecs
    "./include"
@@ -30,7 +30,7 @@ target_link_libraries(App
    vulkan
    glfw
    cutlass
-   assimp
+   "/usr/local/lib/libassimp.so"
    ${BULLET_LIBRARIES}
    mvecs
 )

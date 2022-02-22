@@ -16,6 +16,7 @@ namespace mall
             eGeometry = 1,
             eLighting,
             eForward,
+            eSprite,
         };
 
         struct GBuffer
@@ -62,17 +63,23 @@ namespace mall
 
         Cutlass::HRenderPass getRenderPass(const DefaultRenderPass passID, const uint32_t windowID = 0) const;
 
-        Cutlass::HRenderPass getRenderPass(const uint32_t additionalPassID, const uint32_t windowID = 0) const;
+        Cutlass::HRenderPass getPrepass(const uint32_t additionalPassID, const uint32_t windowID = 0) const;
 
-        uint32_t addRenderPass(const Cutlass::RenderPassInfo& rpi, uint32_t executionOrder, const uint32_t windowID = 0);
+        Cutlass::HRenderPass getPostpass(const uint32_t additionalPassID, const uint32_t windowID = 0) const;
 
-        void createSubCommand(const DefaultRenderPass passID, const Cutlass::SubCommandList& cl, const uint32_t windowID = 0);
-        void createSubCommand(const uint32_t additionalPassID, const Cutlass::SubCommandList& cl, const uint32_t windowID = 0);
+        uint32_t addPrepass(const Cutlass::RenderPassInfo& rpi, uint32_t executionOrder, const uint32_t windowID = 0);
+
+        uint32_t addPostpass(const Cutlass::RenderPassInfo& rpi, uint32_t executionOrder, const uint32_t windowID = 0);
+
+        Cutlass::HCommandBuffer createSubCommand(const DefaultRenderPass passID, const Cutlass::SubCommandList& cl, const uint32_t windowID = 0);
+        Cutlass::HCommandBuffer createSubCommandPrepass(const uint32_t additionalPassID, const Cutlass::SubCommandList& cl, const uint32_t windowID = 0);
+        Cutlass::HCommandBuffer createSubCommandPostpass(const uint32_t additionalPassID, const Cutlass::SubCommandList& cl, const uint32_t windowID = 0);
 
         void destroySubCommand(const Cutlass::HCommandBuffer& cb);
 
         void writeCommand(const DefaultRenderPass passID, const Cutlass::CommandList& cl, const uint32_t windowID = 0);
-        void writeCommand(const uint32_t additionalPassID, const Cutlass::CommandList& cl, const uint32_t windowID = 0);
+        void writeCommandPrepass(const uint32_t prePassID, const Cutlass::CommandList& cl, const uint32_t windowID = 0);
+        void writeCommandPostpass(const uint32_t postPassID, const Cutlass::CommandList& cl, const uint32_t windowID = 0);
 
         void update();
 
@@ -80,7 +87,6 @@ namespace mall
         struct RenderPass
         {
             Cutlass::HRenderPass renderPass;
-            std::vector<Cutlass::HCommandBuffer> subCommands;
             Cutlass::HCommandBuffer command;
         };
 
@@ -89,29 +95,31 @@ namespace mall
             Window()
                 : width(0)
                 , height(0)
-                , nextPassID(0)
+                , frameCount(3)
             {
             }
 
             uint32_t width;
             uint32_t height;
+            uint32_t frameCount;
 
             Cutlass::HWindow window;
             GBuffer gBuffer;
             Cutlass::HTexture finalRT;
             Cutlass::HTexture depthBuffer;
 
+            std::map<uint32_t, RenderPass> prePasses;
             RenderPass geometryPass;
             RenderPass lightingPass;
             RenderPass forwardPass;
-            std::map<uint32_t, RenderPass> additionalPasses;
-            uint32_t nextPassID;
+            RenderPass spritePass;
+            std::map<uint32_t, RenderPass> postPasses;
+            //uint32_t nextPassID;
             std::unordered_map<Cutlass::GraphicsPipelineInfo, Cutlass::HGraphicsPipeline> graphicsPipelines;
-
 
             Cutlass::HRenderPass presentPass;
             Cutlass::HGraphicsPipeline presentPipeline;
-            Cutlass::CommandList presentCommandList;
+            std::vector<Cutlass::CommandList> presentCommandLists;
             Cutlass::HCommandBuffer presentCommandBuffer;
         };
 
@@ -121,6 +129,8 @@ namespace mall
         std::shared_ptr<Cutlass::Context> mpContext;
 
         std::vector<Window> mWindows;
+
+        Cutlass::HTexture mDebugTex;
     };
 }  // namespace mall
 

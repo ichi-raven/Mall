@@ -1,6 +1,7 @@
 #include "../../include/Engine/Graphics.hpp"
 
 #include <algorithm>
+#include <iostream>
 
 namespace mall
 {
@@ -9,6 +10,7 @@ namespace mall
         , mMaxHeight(0)
         , mpContext(context)
     {
+        mpContext->createTextureFromFile("resources/textures/texture.png", mDebugTex);
     }
 
     Graphics::Graphics(const std::shared_ptr<Cutlass::Context>& context, const std::vector<Cutlass::WindowInfo>& windows)
@@ -19,6 +21,8 @@ namespace mall
         assert(windows.size() > 0 || !"no window!");
         for (const auto& window : windows)
             createWindow(window);
+
+        mpContext->createTextureFromFile("resources/textures/texture.png", mDebugTex);
     }
 
     uint32_t Graphics::createWindow(const uint32_t width, const uint32_t height, const char* windowName, bool fullScreen, const uint32_t frameCount, const bool vsync)
@@ -35,6 +39,8 @@ namespace mall
             mMaxWidth = wi.width;
         if (wi.height > mMaxHeight)
             mMaxHeight = wi.height;
+
+        window.frameCount = wi.frameCount;
 
         {  // window
             auto&& res = mpContext->createWindow(wi, window.window);
@@ -85,7 +91,7 @@ namespace mall
 
             {  // lighting
                 auto& rp = window.lightingPass;
-                Cutlass::RenderPassInfo rpi(window.finalRT, window.depthBuffer);
+                Cutlass::RenderPassInfo rpi(window.finalRT);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
                 Cutlass::CommandList cl;
@@ -97,6 +103,17 @@ namespace mall
             {  // forward
                 auto& rp = window.forwardPass;
                 Cutlass::RenderPassInfo rpi(window.finalRT, window.depthBuffer, true);
+                mpContext->createRenderPass(rpi, rp.renderPass);
+
+                Cutlass::CommandList cl;
+                cl.begin(rp.renderPass);
+                cl.end();
+                mpContext->createCommandBuffer(cl, rp.command);
+            }
+
+            {  // sprite
+                auto& rp = window.spritePass;
+                Cutlass::RenderPassInfo rpi(window.finalRT, true);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
                 Cutlass::CommandList cl;
@@ -122,16 +139,25 @@ namespace mall
                 mpContext->createGraphicsPipeline(gpi, window.presentPipeline);
 
                 Cutlass::ShaderResourceSet SRSet;
-                SRSet.bind(0, window.finalRT);
+                 SRSet.bind(0, window.finalRT);
+                //SRSet.bind(0, mDebugTex);
 
-                window.presentCommandList.begin(window.presentPass);
-                window.presentCommandList.bind(window.presentPipeline);
-                window.presentCommandList.bind(0, SRSet);
-                window.presentCommandList.render(4);
-                window.presentCommandList.renderImGui();
-                window.presentCommandList.end();
+                window.presentCommandLists.resize(window.frameCount);
+                auto& cls = window.presentCommandLists;
 
-                mpContext->createCommandBuffer(window.presentCommandList, window.presentCommandBuffer);
+                for (auto& cl : cls)
+                {
+                    cl.barrier(window.finalRT);
+                    cl.begin(window.presentPass);
+                    cl.bind(window.presentPipeline);
+                    cl.bind(0, SRSet);
+                    //cl.renderImGui();
+                    cl.render(4);
+                    cl.end();
+                }
+
+                auto&& res = mpContext->createCommandBuffer(cls, window.presentCommandBuffer);
+                assert(res == Cutlass::Result::eSuccess || !"failed to create present command buffer!");
             }
         }
 
@@ -203,7 +229,7 @@ namespace mall
         const Cutlass::GraphicsPipelineInfo& gpi,
         const uint32_t windowID)
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
         auto&& iter = window.graphicsPipelines.find(gpi);
@@ -220,7 +246,7 @@ namespace mall
 
     const Graphics::GBuffer& Graphics::getGBuffer(const uint32_t windowID) const
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
         return window.gBuffer;
@@ -228,7 +254,7 @@ namespace mall
 
     Cutlass::HRenderPass Graphics::getRenderPass(const DefaultRenderPass passID, const uint32_t windowID) const
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
         switch (passID)
@@ -242,61 +268,103 @@ namespace mall
             case DefaultRenderPass::eForward:
                 return window.forwardPass.renderPass;
                 break;
+            case DefaultRenderPass::eSprite:
+                return window.spritePass.renderPass;
+                break;
             default:
                 assert(!"invalid default render pass!");
                 break;
         }
     }
 
-    Cutlass::HRenderPass Graphics::getRenderPass(const uint32_t additionalPassID, const uint32_t windowID) const
+    Cutlass::HRenderPass Graphics::getPrepass(const uint32_t prepassID, const uint32_t windowID) const
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
-        auto iter    = window.additionalPasses.find(additionalPassID);
-        assert(iter != window.additionalPasses.end() || !"invalid additional pass ID!");
+        auto iter    = window.prePasses.find(prepassID);
+        assert(iter != window.prePasses.end() || !"invalid additional prepass ID!");
 
         return iter->second.renderPass;
     }
 
-    uint32_t Graphics::addRenderPass(const Cutlass::RenderPassInfo& rpi, const uint32_t executionOrder, const uint32_t windowID)
+    Cutlass::HRenderPass Graphics::getPostpass(const uint32_t postpassID, const uint32_t windowID) const
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+        auto iter    = window.postPasses.find(postpassID);
+        assert(iter != window.postPasses.end() || !"invalid additional postpass ID!");
+
+        return iter->second.renderPass;
+    }
+
+    uint32_t Graphics::addPrepass(const Cutlass::RenderPassInfo& rpi, const uint32_t executionOrder, const uint32_t windowID)
+    {
         auto& window = mWindows[windowID];
 
-        mpContext->createRenderPass(rpi, window.additionalPasses[executionOrder].renderPass);
+        assert(window.prePasses.find(executionOrder) == window.prePasses.end() || !"this prepass is already exists!");
+
+        mpContext->createRenderPass(rpi, window.prePasses[executionOrder].renderPass);
+
+        return executionOrder;
+    }
+
+    uint32_t Graphics::addPostpass(const Cutlass::RenderPassInfo& rpi, const uint32_t executionOrder, const uint32_t windowID)
+    {
+        auto& window = mWindows[windowID];
+
+        assert(window.postPasses.find(executionOrder) == window.postPasses.end() || !"this prepass is already exists!");
+
+        mpContext->createRenderPass(rpi, window.postPasses[executionOrder].renderPass);
 
         return executionOrder;
     }
 
     void Graphics::writeCommand(const DefaultRenderPass passID, const Cutlass::CommandList& cl, const uint32_t windowID)
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
+        Cutlass::Result res = Cutlass::Result::eSuccess;
         switch (passID)
         {
             case DefaultRenderPass::eGeometry:
-                mpContext->updateCommandBuffer(cl, window.geometryPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.geometryPass.command);
                 break;
             case DefaultRenderPass::eLighting:
-                mpContext->updateCommandBuffer(cl, window.lightingPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.lightingPass.command);
                 break;
             case DefaultRenderPass::eForward:
-                mpContext->updateCommandBuffer(cl, window.forwardPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.forwardPass.command);
+                break;
+            case DefaultRenderPass::eSprite:
+                res = mpContext->updateCommandBuffer(cl, window.spritePass.command);
                 break;
             default:
                 assert(!"invalid default render pass!");
                 break;
         }
+
+        assert(res == Cutlass::Result::eSuccess || !"failed to write command buffer!");
     }
 
-    void Graphics::writeCommand(const uint32_t additionalPassID, const Cutlass::CommandList& cl, const uint32_t windowID)
+    void Graphics::writeCommandPrepass(const uint32_t prepassID, const Cutlass::CommandList& cl, const uint32_t windowID)
     {
-        assert(windowID >= mWindows.size() || !"invalid window ID!");
+        assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
-        auto iter = window.additionalPasses.find(additionalPassID);
-        assert(iter != window.additionalPasses.end() || !"invalid additional pass ID!");
+        auto&& iter = window.prePasses.find(prepassID);
+        assert(iter != window.prePasses.end() || !"invalid prepass ID!");
+
+        mpContext->updateCommandBuffer(cl, iter->second.command);
+    }
+
+    void Graphics::writeCommandPostpass(const uint32_t postpassID, const Cutlass::CommandList& cl, const uint32_t windowID)
+    {
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+
+        auto&& iter = window.postPasses.find(postpassID);
+        assert(iter != window.postPasses.end() || !"invalid postpass ID!");
 
         mpContext->updateCommandBuffer(cl, iter->second.command);
     }
@@ -305,14 +373,18 @@ namespace mall
     {
         for (const auto& window : mWindows)
         {
+            for (const auto& pass : window.prePasses)
+                mpContext->execute(pass.second.command);
+
             mpContext->execute(window.geometryPass.command);
             mpContext->execute(window.lightingPass.command);
             mpContext->execute(window.forwardPass.command);
+            mpContext->execute(window.spritePass.command);
 
-            for (const auto& pass : window.additionalPasses)
+            for (const auto& pass : window.postPasses)
                 mpContext->execute(pass.second.command);
 
-            mpContext->updateCommandBuffer(window.presentCommandList, window.presentCommandBuffer);
+            //mpContext->updateCommandBuffer(window.presentCommandList, window.presentCommandBuffer);
             mpContext->execute(window.presentCommandBuffer);
         }
     }

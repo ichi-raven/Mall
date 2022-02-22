@@ -4,11 +4,14 @@
 #include <MVECS/IComponentData.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace mall
 {
     struct TransformData : public mvecs::IComponentData
     {
+        COMPONENT_DATA(TransformData)
+
         glm::vec3 pos;
         glm::vec3 vel;
         glm::vec3 acc;
@@ -19,7 +22,6 @@ namespace mall
         float rotVel;
         float rotAcc;
 
-        // glm::mat4 world;
     };
 }  // namespace mall
 
