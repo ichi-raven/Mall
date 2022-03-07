@@ -2,6 +2,10 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
+
+#include <iostream>
 
 namespace mall
 {
@@ -168,13 +172,13 @@ namespace mall
         if (boneMap.count(nodeName) > 0)
         {
             size_t boneIndex = boneMap[nodeName];
-            // std::cerr << "boneIndex " << boneIndex << "\n";
-            // std::cerr << "transform\n" << glm::to_string(transform) << "\n";
-            // std::cerr << "parentTransform\n" << glm::to_string(parentTransform) << "\n";
-            // std::cerr << "globalTransform\n" << glm::to_string(globalTransform) << "\n";
-            // std::cerr << "boneOffset\n" << glm::to_string(bones[boneIndex].offset) << "\n";
+            //std::cerr << "boneIndex " << boneIndex << "\n";
+            //std::cerr << "transform\n" << glm::to_string(transform) << "\n";
+            //std::cerr << "parentTransform\n" << glm::to_string(parentTransform) << "\n";
+            //std::cerr << "globalTransform\n" << glm::to_string(globalTransform) << "\n";
+            //std::cerr << "boneOffset\n" << glm::to_string(bones[boneIndex].offset) << "\n";
             bones[boneIndex].transform = defaultAxis * globalInverse * globalTransform * bones[boneIndex].offset;
-            // std::cerr << "boneTransform\n" << glm::to_string(bones[boneIndex].transform) << "\n";
+            //std::cerr << "boneTransform\n" << glm::to_string(bones[boneIndex].transform) << "\n";
         }
 
         for (size_t i = 0; i < node->mNumChildren; ++i)

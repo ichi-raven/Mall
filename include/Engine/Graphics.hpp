@@ -35,6 +35,8 @@ namespace mall
         uint32_t createWindow(const uint32_t width, const uint32_t height, const char* windowName, bool fullScreen = false, const uint32_t frameCount = 3, const bool vsync = false);
         uint32_t createWindow(const Cutlass::WindowInfo& wi);
 
+        void getWindowSize(uint32_t& width_out, uint32_t& height_out, uint32_t windowID = 0);
+
         //バッファ作成・破棄
         Cutlass::HBuffer createBuffer(const Cutlass::BufferInfo& info);
         void destroyBuffer(const Cutlass::HBuffer& handle);

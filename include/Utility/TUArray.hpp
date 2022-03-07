@@ -37,7 +37,7 @@ namespace mall
             return mAddress[index];
         }
 
-        T const* data()
+        T* data()
         {
             assert(mAddress);
             return mAddress;

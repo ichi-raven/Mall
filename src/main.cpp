@@ -1,8 +1,8 @@
 #include <Cutlass/Cutlass.hpp>
 #include <MVECS/MVECS.hpp>
+#include <chrono>
 #include <iostream>
 #include <memory>
-#include <chrono>
 #include <numeric>
 
 #define GLM_FORCE_RADIANS
@@ -11,6 +11,8 @@
 #include <glm/glm.hpp>
 
 #include "../include/AppInfo.hpp"
+#include "../include/System/AudioSystem.hpp"
+#include "../include/System/AnimateSystem.hpp"
 #include "../include/System/RenderSystem.hpp"
 #include "../include/System/SampleSystem.hpp"
 #include "../include/System/TransformSystem.hpp"
@@ -28,23 +30,26 @@ namespace mall
         pContext->initialize(appName, false);
 #endif
 
+        app.common().audio        = std::make_unique<Audio>();
         app.common().graphics     = std::make_unique<Graphics>(pContext);
         app.common().input        = std::make_unique<Input>(pContext);
         app.common().resourceBank = std::make_unique<ResourceBank>(pContext);
     }
 
     template <typename Key, typename Common, typename = std::enable_if_t<std::is_base_of_v<Engine, Common>>>
-    void update(mvecs::Application<Key, Common>& app)
+    float update(mvecs::Application<Key, Common>& app)
     {
-        static std::array<float, 10> times;  // 10f平均でfpsを計測
+        constexpr std::size_t sampleNum = 10;
+        static std::array<float, sampleNum> times;  // 10f平均でfpsを計測
         static std::chrono::high_resolution_clock::time_point now, prev = std::chrono::high_resolution_clock::now();
         static std::uint32_t frame = 0;
 
         {  //フレーム数, fps
-            now                                  = std::chrono::high_resolution_clock::now();
-            times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
+            now                    = std::chrono::high_resolution_clock::now();
+            app.common().deltaTime = times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
             std::cerr << "now frame : " << frame << "\n";
             std::cerr << "FPS : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
+            // std::system("clear");
         }
 
         app.common().input->update();
@@ -55,13 +60,15 @@ namespace mall
             ++frame;
             prev = now;
         }
+
+        return (1. / (std::accumulate(times.begin(), times.end(), 0.) / 1. * sampleNum));
     }
 }  // namespace mall
 
 int main()
 {
     constexpr const char* appName = "Mallsoftware";
-    constexpr uint32_t width = 800, height = 600;
+    constexpr uint32_t width = 1000, height = 800;
 
     mvecs::Application<WorldKey, Common> app;
 
@@ -71,18 +78,18 @@ int main()
     titleWorld.addSystems<
         mall::RenderSystem<WorldKey, Common>,
         mall::TransformSystem<WorldKey, Common>,
+        mall::AnimateSystem<WorldKey, Common>,
+        mall::AudioSystem<WorldKey, Common>,
         SampleSystem>();
 
-    app.common().graphics->createWindow(width, height, appName, false, 3, false);
+    app.common().graphics->createWindow(width, height, appName, false, 3, true);
 
-    app.initialize(WorldKey::eTitle);
+    app.start(WorldKey::eTitle);
 
     while (!app.ended())
     {
         mall::update(app);
     }
-
-    std::cout << "application end\n";
 
     return 0;
 }

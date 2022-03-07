@@ -1,11 +1,12 @@
 #ifndef MALL_GLOBAL_HPP_
 #define MALL_GLOBAL_HPP_
 
+#include <memory>
+
+#include "Engine/Audio.hpp"
 #include "Engine/Graphics.hpp"
 #include "Engine/Input.hpp"
 #include "Engine/ResourceBank.hpp"
-
-#include <memory>
 
 /**
  * @brief Engine提供機能
@@ -16,9 +17,12 @@ namespace mall
 {
     struct Engine
     {
+        std::unique_ptr<Audio> audio;
         std::unique_ptr<Graphics> graphics;
         std::unique_ptr<Input> input;
         std::unique_ptr<ResourceBank> resourceBank;
+
+        double deltaTime;
     };
 }  // namespace mall
 

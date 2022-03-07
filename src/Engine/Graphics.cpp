@@ -40,6 +40,9 @@ namespace mall
         if (wi.height > mMaxHeight)
             mMaxHeight = wi.height;
 
+        window.width  = wi.width;
+        window.height = wi.height;
+
         window.frameCount = wi.frameCount;
 
         {  // window
@@ -49,7 +52,7 @@ namespace mall
 
         {  // g-buffer
             Cutlass::TextureInfo ti;
-            ti.setRTTex2DColor(mMaxWidth, mMaxHeight);
+            ti.setRTTex2DColor(mMaxWidth, mMaxHeight, Cutlass::ResourceType::eF32Vec4);
             auto&& res = mpContext->createTexture(ti, window.gBuffer.albedo);
             assert(res == Cutlass::Result::eSuccess || !"failed to create albedo texture!");
             res = mpContext->createTexture(ti, window.gBuffer.normal);
@@ -95,6 +98,12 @@ namespace mall
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
                 Cutlass::CommandList cl;
+
+                // cl.barrier(window.gBuffer.albedo);
+                // cl.barrier(window.gBuffer.normal);
+                // cl.barrier(window.gBuffer.worldPos);
+                // cl.barrier(window.gBuffer.metalic);
+                // cl.barrier(window.gBuffer.roughness);
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);
@@ -139,8 +148,8 @@ namespace mall
                 mpContext->createGraphicsPipeline(gpi, window.presentPipeline);
 
                 Cutlass::ShaderResourceSet SRSet;
-                 SRSet.bind(0, window.finalRT);
-                //SRSet.bind(0, mDebugTex);
+                SRSet.bind(0, window.finalRT);
+                // SRSet.bind(0, mDebugTex);
 
                 window.presentCommandLists.resize(window.frameCount);
                 auto& cls = window.presentCommandLists;
@@ -148,10 +157,10 @@ namespace mall
                 for (auto& cl : cls)
                 {
                     cl.barrier(window.finalRT);
-                    cl.begin(window.presentPass);
+                    cl.begin(window.presentPass, {1.f, 0}, {1.f, 0, 0, 1.f});
                     cl.bind(window.presentPipeline);
                     cl.bind(0, SRSet);
-                    //cl.renderImGui();
+                    // cl.renderImGui();
                     cl.render(4);
                     cl.end();
                 }
@@ -164,6 +173,14 @@ namespace mall
         mWindows.emplace_back(window);
 
         return mWindows.size() - 1;
+    }
+
+    void Graphics::getWindowSize(uint32_t& width_out, uint32_t& height_out, uint32_t windowID)
+    {
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+        width_out    = window.width;
+        height_out   = window.height;
     }
 
     Cutlass::HBuffer Graphics::createBuffer(const Cutlass::BufferInfo& info)
@@ -384,7 +401,7 @@ namespace mall
             for (const auto& pass : window.postPasses)
                 mpContext->execute(pass.second.command);
 
-            //mpContext->updateCommandBuffer(window.presentCommandList, window.presentCommandBuffer);
+            //mpContext->updateCommandBuffer(window.presentCommandLists, window.presentCommandBuffer);
             mpContext->execute(window.presentCommandBuffer);
         }
     }

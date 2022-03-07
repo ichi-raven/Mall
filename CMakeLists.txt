@@ -20,6 +20,7 @@ include_directories(
    ${BULLET_INCLUDE_DIR}
    mvecs
    "./include"
+   portaudio
 )
 
 file(GLOB_RECURSE SRCS src/*.c*)
@@ -33,4 +34,5 @@ target_link_libraries(App
    "/usr/local/lib/libassimp.so"
    ${BULLET_LIBRARIES}
    mvecs
+   portaudio
 )

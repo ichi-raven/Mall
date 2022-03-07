@@ -59,7 +59,7 @@ namespace mall
                     Cutlass::Shader("resources/shaders/deferred/GBuffer_frag.spv"),
                     graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry),
                     Cutlass::DepthStencilState::eDepth,
-                    Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
+                    Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eClockwise));
 
                 mGeometryPipeline = graphics->getGraphicsPipeline(gpi);
             }
@@ -70,7 +70,7 @@ namespace mall
                     Cutlass::Shader("resources/shaders/deferred/Lighting_frag.spv"),
                     graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting),
                     Cutlass::DepthStencilState::eNone,
-                    Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eCounterClockwise),
+                    Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise),
                     Cutlass::Topology::eTriangleStrip);
 
                 mLightingPipeline = graphics->getGraphicsPipeline(gpi);
@@ -122,7 +122,7 @@ namespace mall
                 }
             }
 
-            {
+            {  // lighting pass
                 Cutlass::ShaderResourceSet bufferSet, textureSet;
                 Cutlass::CommandList cl;
 
@@ -135,7 +135,13 @@ namespace mall
                 textureSet.bind(2, gBuffer.worldPos);
                 // metalicとroughnessつける
 
-                cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting));
+                cl.barrier(gBuffer.albedo);
+                cl.barrier(gBuffer.normal);
+                cl.barrier(gBuffer.worldPos);
+                cl.barrier(gBuffer.metalic);
+                cl.barrier(gBuffer.roughness);
+
+                cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting), {1.f, 0}, {1.f, 0, 0, 1.f});
                 cl.bind(mLightingPipeline);
                 cl.bind(0, bufferSet);
                 cl.bind(1, textureSet);
@@ -163,8 +169,8 @@ namespace mall
                     if (camera.enable)
                     {
                         cameraCBParam.cameraPos   = transform.pos;
-                        auto view                 = glm::lookAtRH(transform.pos, camera.lookPos, camera.up);
-                        auto proj                 = glm::perspective(camera.fovY, camera.aspect, camera.near, camera.far);
+                        auto&& view               = glm::lookAtRH(transform.pos, camera.lookPos, camera.up);
+                        auto&& proj               = glm::perspective(camera.fovY, camera.aspect, camera.near, camera.far);
                         meshSceneCBParam.view     = view;
                         meshSceneCBParam.proj     = proj;
                         skeletalSceneCBParam.view = view;
@@ -188,11 +194,11 @@ namespace mall
                     switch (light.type)
                     {
                         case LightData::LightType::eDirectional:
-                            lightCBParam[lightCount].lightType = 0;
+                            lightCBParam[lightCount].lightType = static_cast<std::uint32_t>(LightData::LightType::eDirectional);
                             lightCBParam[lightCount].lightDir  = light.direction;
                             break;
                         case LightData::LightType::ePoint:
-                            lightCBParam[lightCount].lightType  = 1;
+                            lightCBParam[lightCount].lightType  = static_cast<std::uint32_t>(LightData::LightType::ePoint);
                             lightCBParam[lightCount].lightPos   = transform.pos;
                             lightCBParam[lightCount].lightRange = light.range;
                             break;
@@ -208,20 +214,13 @@ namespace mall
 
             Cutlass::CommandList cl;
 
-            auto& gBuffer = graphics->getGBuffer();
-
-            cl.barrier(gBuffer.albedo);
-            cl.barrier(gBuffer.normal);
-            cl.barrier(gBuffer.worldPos);
-            cl.barrier(gBuffer.metalic);
-            cl.barrier(gBuffer.roughness);
-            cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry));
+            cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry), {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
 
             {
                 std::function<void(MeshData&, MaterialData&, TransformData&)> f =
                     [&](MeshData& mesh, MaterialData& material, TransformData& transform)
                 {
-                    meshSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rotation) * glm::scale(transform.scale);
+                    meshSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale);
                     meshSceneCBParam.lighting      = 1;
                     meshSceneCBParam.receiveShadow = 0;
                     meshSceneCBParam.useBone       = 0;
@@ -237,9 +236,11 @@ namespace mall
 
                     cl.bind(mGeometryPipeline);
                     cl.bind(0, bufferSet);
-                    cl.bind(1, textureSet);
-                    for (auto& m : mesh.meshes)
+                    for (std::size_t i = 0; i < mesh.meshes.size(); ++i)
                     {
+                        auto& m = mesh.meshes[i];
+                        textureSet.bind(0, material.textures[i].handle);
+                        cl.bind(1, textureSet);
                         cl.bind(m.VB, m.IB);
                         cl.renderIndexed(m.indices.size());
                     }
@@ -252,7 +253,7 @@ namespace mall
                 std::function<void(SkeletalMeshData&, MaterialData&, TransformData&)> f =
                     [&](SkeletalMeshData& mesh, MaterialData& material, TransformData& transform)
                 {
-                    skeletalSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rotation) * glm::scale(transform.scale);
+                    skeletalSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale);
                     skeletalSceneCBParam.lighting      = 1;
                     skeletalSceneCBParam.receiveShadow = 0;
                     skeletalSceneCBParam.useBone       = 1;
@@ -273,14 +274,15 @@ namespace mall
                     bufferSet.bind(0, mesh.renderingInfo.sceneCB);
                     bufferSet.bind(1, mesh.renderingInfo.boneCB);
                     assert(material.textures.size() > 0 || !"material texture is empty!");
-                    textureSet.bind(0, material.textures.begin()->handle);
 
                     cl.bind(mGeometryPipeline);
                     cl.bind(0, bufferSet);
-                    cl.bind(1, textureSet);
-                    for (auto& m : mesh.meshes)
+                    for (std::size_t i = 0; i < mesh.meshes.size(); ++i)
                     {
+                        auto& m = mesh.meshes[i];
                         cl.bind(m.VB, m.IB);
+                        textureSet.bind(0, material.textures[i].handle);
+                        cl.bind(1, textureSet);
                         cl.renderIndexed(m.indices.size());
                     }
                 };
