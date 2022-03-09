@@ -46,5 +46,11 @@ namespace mall
         sound.playFlag = false;
         Pa_StopStream(sound.ppStream.get());
     }
+    
+    void Audio::reset(SoundData& sound)
+    {
+        sound.bufPos = 0;
+        stop(sound);
+    }
 
 }  // namespace mall

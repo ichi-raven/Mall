@@ -16,9 +16,11 @@ namespace mall
 
         ~Audio();
 
-        void play(SoundData& sound);
+        void play(SoundData& soundData);
 
-        void stop(SoundData& sound);
+        void stop(SoundData& soundData);
+
+        void reset(SoundData& soundData);
     };
 }  // namespace mall
 

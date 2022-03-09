@@ -16,6 +16,7 @@
 #include "../include/System/RenderSystem.hpp"
 #include "../include/System/SampleSystem.hpp"
 #include "../include/System/TransformSystem.hpp"
+#include "../include/System/TextSystem.hpp"
 
 namespace mall
 {
@@ -68,7 +69,7 @@ namespace mall
 int main()
 {
     constexpr const char* appName = "Mallsoftware";
-    constexpr uint32_t width = 1000, height = 800;
+    constexpr uint32_t width = 1920, height = 1080;
 
     mvecs::Application<WorldKey, Common> app;
 
@@ -80,9 +81,10 @@ int main()
         mall::TransformSystem<WorldKey, Common>,
         mall::AnimateSystem<WorldKey, Common>,
         mall::AudioSystem<WorldKey, Common>,
+        mall::TextSystem<WorldKey, Common>,
         SampleSystem>();
 
-    app.common().graphics->createWindow(width, height, appName, false, 3, true);
+    app.common().graphics->createWindow(width, height, appName, true, 3, false);
 
     app.start(WorldKey::eTitle);
 

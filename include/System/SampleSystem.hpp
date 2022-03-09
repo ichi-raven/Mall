@@ -19,6 +19,7 @@ private:
     std::optional<mvecs::Entity> mTestModel;
     std::optional<mvecs::Entity> mTestCamera;
     std::optional<mvecs::Entity> mTestLight;
+    std::optional<mvecs::Entity> mTestSprite;
 };
 
 #endif

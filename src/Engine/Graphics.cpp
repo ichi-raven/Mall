@@ -99,11 +99,6 @@ namespace mall
 
                 Cutlass::CommandList cl;
 
-                // cl.barrier(window.gBuffer.albedo);
-                // cl.barrier(window.gBuffer.normal);
-                // cl.barrier(window.gBuffer.worldPos);
-                // cl.barrier(window.gBuffer.metalic);
-                // cl.barrier(window.gBuffer.roughness);
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);

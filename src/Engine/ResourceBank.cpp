@@ -5,6 +5,11 @@
 #include <iostream>
 #include <regex>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb/stb_truetype.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
 namespace mall
 {
     inline glm::mat4 convert4x4(const aiMatrix4x4& from)
@@ -155,10 +160,23 @@ namespace mall
                 mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
             }
 
-            materialData.textures.create(model.material.textures.data(), model.material.textures.size());
+            if (!model.material.textures.empty())
+            {
+                materialData.textures.create(model.material.textures.data(), model.material.textures.size());
+            }
         }
 
         return true;
+    }
+
+    bool ResourceBank::load(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite)
+    {
+        return load(std::vector<std::string_view>(paths.begin(), paths.end()), name, sprite);
+    }
+
+    bool ResourceBank::load(std::string_view path, std::string_view name, SpriteData& sprite)
+    {
+        return load(std::vector<std::string_view>(1, path), name, sprite);
     }
 
     bool ResourceBank::load(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& spriteData)
@@ -197,6 +215,19 @@ namespace mall
         return true;
     }
 
+    bool ResourceBank::getSprite(std::string_view name, SpriteData& spriteData)
+    {
+        auto&& strName = std::string(name);
+        auto&& iter    = mSpriteCacheMap.find(strName);
+        if (iter == mSpriteCacheMap.end())
+            return false;
+
+        spriteData.textures.create(iter->second.textures.data(), iter->second.textures.size());
+        spriteData.index = 0;
+
+        return true;
+    }
+
     bool ResourceBank::load(std::string_view path, SoundData& soundData)
     {
         auto&& strPath = std::string(path);
@@ -205,16 +236,6 @@ namespace mall
         {
             iter         = mSoundCacheMap.emplace(strPath, Sound()).first;
             Sound& sound = iter->second;
-
-            // if (soundData.loaded)
-            // {
-            //     if (soundData.ppStream.get())
-            //     {
-            //         Pa_StopStream(soundData.ppStream.get());
-            //         //?
-            //         Pa_CloseStream(soundData.ppStream.get());
-            //     }
-            // }
 
             FILE* fp;
             fp = fopen(path.data(), "rb");
@@ -276,7 +297,8 @@ namespace mall
             fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"data"がかえる
             if (readbuf != "data")
             {
-                assert(!"failed to load!!!!");
+                std::cout << readbuf << "\n";
+                assert(!"failed to load audio file!");
                 return false;
             }
 
@@ -365,7 +387,7 @@ namespace mall
                 paFramesPerBufferUnspecified,  // 1サンプルあたりのバッファ長(自動)
                 paNoFlag,                      //ストリーミングの設定らしい　とりあえず0
                 callback,                      //コールバック関数（上のラムダ）
-                &soundData);                         // wavファイルデータを渡す（ちなみにどんなデータでも渡せる）
+                &soundData);                   // wavファイルデータを渡す（ちなみにどんなデータでも渡せる）
 
             sound.pStream = stream;
 
@@ -400,6 +422,53 @@ namespace mall
         soundData.loopFlag        = true;
         soundData.playFlag        = false;
         soundData.playingDuration = 0;
+
+        return true;
+    }
+
+    bool ResourceBank::load(std::string_view path, TextData& text)
+    {
+        auto&& strPath = std::string(path);
+        auto&& iter    = mFontCacheMap.find(strPath);
+
+        if (iter == mFontCacheMap.end())
+        {
+            iter       = mFontCacheMap.emplace(strPath, Font()).first;
+            auto& font = iter->second;
+
+            /* Load font (. ttf) file */
+            long int size = 0;
+            // unsigned char *fontBuffer = NULL;
+
+            FILE* fontFile = fopen(path.data(), "rb");
+            if (fontFile == NULL)
+            {
+                assert(!"failed to open font file!");
+                return false;
+            }
+
+            fseek(fontFile, 0, SEEK_END); /* Set the file pointer to the end of the file and offset 0 byte based on the end of the file */
+            size = ftell(fontFile);       /* Get the file size (end of file - head of file, in bytes) */
+            fseek(fontFile, 0, SEEK_SET); /* Reset the file pointer to the file header */
+
+            font.fontBuffer = std::unique_ptr<unsigned char>(new unsigned char[size * sizeof(unsigned char)]);
+            fread(font.fontBuffer.get(), size, 1, fontFile);
+            fclose(fontFile);
+
+            /* Initialize font */
+            if (!stbtt_InitFont(&font.fontInfo, font.fontBuffer.get(), 0))
+            {
+                assert(!"stb init font failed");
+                return false;
+            }
+        }
+
+        text.fontInfo.create(&iter->second.fontInfo);
+        text.fontBuffer.create(&iter->second.fontBuffer);
+
+        Cutlass::TextureInfo ti;
+        ti.setSRTex2D(1, 1, true);
+        mpContext->createTexture(ti, text.texture);
 
         return true;
     }

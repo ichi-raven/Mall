@@ -13,6 +13,7 @@
 #include "../ComponentData/SkeletalMeshData.hpp"
 #include "../ComponentData/SoundData.hpp"
 #include "../ComponentData/SpriteData.hpp"
+#include "../ComponentData/TextData.hpp"
 
 namespace mall
 {
@@ -33,7 +34,15 @@ namespace mall
 
         bool load(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& sprite);
 
+        bool load(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite);
+
+        bool load(std::string_view path, std::string_view name, SpriteData& sprite);
+
+        bool getSprite(std::string_view name, SpriteData& sprite);
+
         bool load(std::string_view path, SoundData& sound);
+
+        bool load(std::string_view path, TextData& text);
 
         bool unload(std::string_view name);
 
@@ -87,6 +96,12 @@ namespace mall
             }
         };
 
+        struct Font
+        {
+            stbtt_fontinfo fontInfo;
+            std::unique_ptr<unsigned char> fontBuffer;
+        };
+
         void processNode(const aiNode* node, Model& model_out);
 
         void processMesh(const aiNode* node, const aiMesh* mesh, Model& model_out);
@@ -99,6 +114,7 @@ namespace mall
         std::unordered_map<std::string, Model> mSkeletalModelCacheMap;
         std::unordered_map<std::string, Sprite> mSpriteCacheMap;
         std::unordered_map<std::string, Sound> mSoundCacheMap;
+        std::unordered_map<std::string, Font> mFontCacheMap;
 
         std::unordered_map<std::string, Cutlass::HTexture> mTextureCacheMap;
 

@@ -26,7 +26,6 @@ namespace mall
             auto&& lmdUpdateTransform = [&](TransformData& transform)
             {
                 transform.pos += deltaTime * transform.vel += deltaTime * transform.acc;
-                //transform.rotation.w += deltaTime * (transform.rotVel += deltaTime * transform.rotAcc);
             };
 
             this->template forEach<TransformData>(lmdUpdateTransform);

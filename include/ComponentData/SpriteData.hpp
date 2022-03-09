@@ -19,11 +19,18 @@ namespace mall
                 glm::mat4 proj;
             };
 
-            Cutlass::HBuffer scene2DCB;
+            struct Vertex
+            {
+                glm::vec3 pos;
+                glm::vec2 uv;
+            };
+
+            Cutlass::HBuffer spriteVB;
         };
 
         TUArray<Cutlass::HTexture> textures;
         std::uint32_t index;
+        bool centerFlag;
 
         RenderingInfo renderingInfo;
     };
