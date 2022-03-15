@@ -118,6 +118,7 @@ float4 PSMain(VSOutput input) : SV_Target0
 
     float4 outColor = float4((albedo * lightAll).xyz, albedo.w);
 
+    // for non-shadow
     return outColor;
 
     float4 shadowPos     = mul(lightViewProj, worldPos);

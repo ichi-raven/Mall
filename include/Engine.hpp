@@ -6,6 +6,7 @@
 #include "Engine/Audio.hpp"
 #include "Engine/Graphics.hpp"
 #include "Engine/Input.hpp"
+#include "Engine/Physics.hpp"
 #include "Engine/ResourceBank.hpp"
 
 /**
@@ -20,6 +21,7 @@ namespace mall
         std::unique_ptr<Audio> audio;
         std::unique_ptr<Graphics> graphics;
         std::unique_ptr<Input> input;
+        std::unique_ptr<Physics> physics;
         std::unique_ptr<ResourceBank> resourceBank;
 
         double deltaTime;

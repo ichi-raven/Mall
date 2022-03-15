@@ -8,6 +8,7 @@
 #include "../../include/ComponentData/LightData.hpp"
 #include "../../include/ComponentData/MaterialData.hpp"
 #include "../../include/ComponentData/MeshData.hpp"
+#include "../../include/ComponentData/RigidBodyData.hpp"
 #include "../../include/ComponentData/SoundData.hpp"
 #include "../../include/ComponentData/SpriteData.hpp"
 #include "../../include/ComponentData/TransformData.hpp"
@@ -16,7 +17,7 @@ void SampleSystem::onInit()
 {
     mExecutionOrder = 0;
 
-    mTestModel  = createEntity<mall::SkeletalMeshData, mall::MaterialData, mall::TransformData>();
+    mTestModel  = createEntity<mall::SkeletalMeshData, mall::MaterialData, mall::RigidBodyData>();
     mTestCamera = createEntity<mall::CameraData, mall::TransformData>();
     mTestLight  = createEntity<mall::LightData, mall::TransformData>();
 
@@ -26,14 +27,18 @@ void SampleSystem::onInit()
 
     auto& resourceBank = common().resourceBank;
 
-    resourceBank->load(
+    glm::mat4 axis(1.f);
+    axis[1][1] *= -1.f;
+
+    resourceBank->create(
         "resources/models/CesiumMan/glTF/CesiumMan.gltf",
         //"resources/models/utakover1.01/utako2.pmx",
         getComponentData<mall::SkeletalMeshData>(*mTestModel),
-        getComponentData<mall::MaterialData>(*mTestModel));
+        getComponentData<mall::MaterialData>(*mTestModel),
+        axis);
 
     auto& textData = getComponentData<mall::TextData>(*mTestSprite);
-    resourceBank->load("resources/fonts/NikkyouSans-mLKax.ttf", textData);
+    resourceBank->create("resources/fonts/NikkyouSans-mLKax.ttf", textData);
     textData.centerFlag = true;
     textData.setText(L"日本語test", 600, 256, glm::vec4(1.f, 0, 0, 1.f));
 
@@ -41,7 +46,7 @@ void SampleSystem::onInit()
     spriteTrans.setup(glm::vec3(500, 500, 0));
 
     auto& soundData = getComponentData<mall::SoundData>(sound);
-    bool res        = resourceBank->load("resources/sounds/th06_14.wav", soundData);
+    bool res        = resourceBank->create("resources/sounds/th06_14.wav", soundData);
     assert(res);
     soundData.volumeRate = 0.25f;
     common().audio->play(soundData);
@@ -62,16 +67,19 @@ void SampleSystem::onInit()
     cameraTrans.setup();
     cameraTrans.rot = glm::quat(glm::vec3(0));
 
-    auto&& modelTrans = getComponentData<mall::TransformData>(*mTestModel);
-    modelTrans.setup(glm::vec3(0.f, 1.f, -3.f));
-    modelTrans.rot = glm::quat(glm::vec3(0, 0, glm::radians(180.f)));
+    // auto&& modelTrans = getComponentData<mall::TransformData>(*mTestModel);
+    // modelTrans.setup(glm::vec3(0.f, 1.f, -3.f));
+    // modelTrans.rot = glm::quat(glm::vec3(0, 0, glm::radians(180.f)));
     // modelTrans.scale = glm::vec3(0.12f);
+
+    auto&& modelRigidBody = getComponentData<mall::RigidBodyData>(*mTestModel);
+    common().physics->createBox(glm::vec3(10.f), glm::vec3(0, -2.f, -3.f), 1, modelRigidBody);
 }
 
 void SampleSystem::onUpdate()
 {
     static std::uint32_t frame = 0;
-    if (++frame % 30 == 0)
+    if (++frame % 60 == 0)
     {
         auto& textData = getComponentData<mall::TextData>(*mTestSprite);
         // common().resourceBank->load("resources/fonts/NikkyouSans-mLKax.ttf", textData);
@@ -112,7 +120,7 @@ void SampleSystem::onUpdate()
         trans.vel.y = speed;
     }
 
-    // trans.rot = glm::quat(static_cast<float>(common().deltaTime) * glm::vec3(0, 0, glm::radians(90.f))) * trans.rot;
+    trans.rot = glm::quat(static_cast<float>(common().deltaTime) * glm::vec3(0, 0, glm::radians(90.f))) * trans.rot;
 
     if (common().input->getKey(Cutlass::Key::Escape))
     {
@@ -122,4 +130,6 @@ void SampleSystem::onUpdate()
 
 void SampleSystem::onEnd()
 {
+    common().resourceBank->destroy(getComponentData<mall::SkeletalMeshData>(*mTestModel), getComponentData<mall::MaterialData>(*mTestModel));
+    common().resourceBank->destroy(getComponentData<mall::TextData>(*mTestSprite));
 }

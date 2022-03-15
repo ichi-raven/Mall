@@ -12,6 +12,7 @@
 #include "../ComponentData/LightData.hpp"
 #include "../ComponentData/MaterialData.hpp"
 #include "../ComponentData/MeshData.hpp"
+#include "../ComponentData/RigidBodyData.hpp"
 #include "../ComponentData/SkeletalMeshData.hpp"
 #include "../ComponentData/TransformData.hpp"
 #include "../Engine.hpp"
@@ -92,36 +93,36 @@ namespace mall
             {
                 Cutlass::BufferInfo bi;
 
-                this->template forEach<MeshData>(
-                    [&](MeshData& mesh)
-                    {
-                        bi.setUniformBuffer<MeshData::RenderingInfo::SceneCBParam>();
-                        mesh.renderingInfo.sceneCB = graphics->createBuffer(bi);
-                    });
+                // this->template forEach<MeshData>(
+                //     [&](MeshData& mesh)
+                //     {
+                //         bi.setUniformBuffer<MeshData::RenderingInfo::SceneCBParam>();
+                //         mesh.renderingInfo.sceneCB = graphics->createBuffer(bi);
+                //     });
 
-                this->template forEach<SkeletalMeshData>(
-                    [&](SkeletalMeshData& skeletalMesh)
-                    {
-                        bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::SceneCBParam>();
-                        skeletalMesh.renderingInfo.sceneCB = graphics->createBuffer(bi);
+                // this->template forEach<SkeletalMeshData>(
+                //     [&](SkeletalMeshData& skeletalMesh)
+                //     {
+                //         bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::SceneCBParam>();
+                //         skeletalMesh.renderingInfo.sceneCB = graphics->createBuffer(bi);
 
-                        bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::BoneCBParam>();
-                        skeletalMesh.renderingInfo.boneCB = graphics->createBuffer(bi);
-                    });
+                //         bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::BoneCBParam>();
+                //         skeletalMesh.renderingInfo.boneCB = graphics->createBuffer(bi);
+                //     });
 
-                this->template forEach<SpriteData>(
-                    [&](SpriteData& sprite)
-                    {
-                        bi.setVertexBuffer<SpriteData::RenderingInfo::Vertex>(4);
-                        sprite.renderingInfo.spriteVB = graphics->createBuffer(bi);
-                    });
+                // this->template forEach<SpriteData>(
+                //     [&](SpriteData& sprite)
+                //     {
+                //         bi.setVertexBuffer<SpriteData::RenderingInfo::Vertex>(4);
+                //         sprite.renderingInfo.spriteVB = graphics->createBuffer(bi);
+                //     });
 
-                this->template forEach<TextData>(
-                    [&](TextData& text)
-                    {
-                        bi.setVertexBuffer<TextData::RenderingInfo::Vertex>(4);
-                        text.renderingInfo.spriteVB = graphics->createBuffer(bi);
-                    });
+                // this->template forEach<TextData>(
+                //     [&](TextData& text)
+                //     {
+                //         bi.setVertexBuffer<TextData::RenderingInfo::Vertex>(4);
+                //         text.renderingInfo.spriteVB = graphics->createBuffer(bi);
+                //     });
 
                 bi.setUniformBuffer<CameraData::RenderingInfo::CameraCBParam>();
                 mCameraCB = graphics->createBuffer(bi);
@@ -260,11 +261,11 @@ namespace mall
 
             cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry), {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
 
-            {  // mesh
+            {  // mesh with transform
                 std::function<void(MeshData&, MaterialData&, TransformData&)> f =
                     [&](MeshData& mesh, MaterialData& material, TransformData& transform)
                 {
-                    meshSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale);
+                    meshSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale) * mesh.defaultAxis;
                     meshSceneCBParam.lighting      = 1;
                     meshSceneCBParam.receiveShadow = 0;
                     meshSceneCBParam.useBone       = 0;
@@ -293,11 +294,44 @@ namespace mall
                 this->template forEach<MeshData, MaterialData, TransformData>(f);
             }
 
-            {  // skeletal mesh
+            {  // mesh with rigidbody
+                std::function<void(MeshData&, MaterialData&, RigidBodyData&)> f =
+                    [&](MeshData& mesh, MaterialData& material, RigidBodyData& rigidBody)
+                {
+                    meshSceneCBParam.world         = rigidBody.world * mesh.defaultAxis;
+                    meshSceneCBParam.lighting      = 1;
+                    meshSceneCBParam.receiveShadow = 0;
+                    meshSceneCBParam.useBone       = 0;
+
+                    graphics->writeBuffer(sizeof(MeshData::RenderingInfo::SceneCBParam), &meshSceneCBParam, mesh.renderingInfo.sceneCB);
+
+                    Cutlass::ShaderResourceSet bufferSet, textureSet;
+
+                    bufferSet.bind(0, mesh.renderingInfo.sceneCB);
+                    bufferSet.bind(1, mDummyBoneCB);
+                    assert(material.textures.size() > 0 || !"material texture is empty!");
+                    textureSet.bind(0, material.textures.begin()->handle);
+
+                    cl.bind(mGeometryPipeline);
+                    cl.bind(0, bufferSet);
+                    for (std::size_t i = 0; i < mesh.meshes.size(); ++i)
+                    {
+                        auto& m = mesh.meshes[i];
+                        textureSet.bind(0, material.textures[i].handle);
+                        cl.bind(1, textureSet);
+                        cl.bind(m.VB, m.IB);
+                        cl.renderIndexed(m.indices.size());
+                    }
+                };
+
+                this->template forEach<MeshData, MaterialData, RigidBodyData>(f);
+            }
+
+            {  // skeletal mesh with transform
                 std::function<void(SkeletalMeshData&, MaterialData&, TransformData&)> f =
                     [&](SkeletalMeshData& mesh, MaterialData& material, TransformData& transform)
                 {
-                    skeletalSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale);
+                    skeletalSceneCBParam.world         = glm::translate(glm::mat4(1.f), transform.pos) * glm::toMat4(transform.rot) * glm::scale(transform.scale) * mesh.defaultAxis;
                     skeletalSceneCBParam.lighting      = 1;
                     skeletalSceneCBParam.receiveShadow = 0;
                     skeletalSceneCBParam.useBone       = 1;
@@ -332,6 +366,47 @@ namespace mall
                 };
 
                 this->template forEach<SkeletalMeshData, MaterialData, TransformData>(f);
+            }
+
+            {  // skeletal mesh with rigidbody
+                std::function<void(SkeletalMeshData&, MaterialData&, RigidBodyData&)> f =
+                    [&](SkeletalMeshData& mesh, MaterialData& material, RigidBodyData& rigidBody)
+                {
+                    skeletalSceneCBParam.world         = rigidBody.world * mesh.defaultAxis;
+                    skeletalSceneCBParam.lighting      = 1;
+                    skeletalSceneCBParam.receiveShadow = 0;
+                    skeletalSceneCBParam.useBone       = 1;
+
+                    for (std::size_t i = 0; i < SkeletalMeshData::RenderingInfo::MaxBoneNum; ++i)
+                    {
+                        if (i >= mesh.skeleton.get().bones.size())
+                            boneCBParam.boneMat[i] = glm::mat4(1.f);
+                        else
+                            boneCBParam.boneMat[i] = mesh.skeleton.get().bones[i].transform;
+                    }
+
+                    graphics->writeBuffer(sizeof(SkeletalMeshData::RenderingInfo::SceneCBParam), &skeletalSceneCBParam, mesh.renderingInfo.sceneCB);
+                    graphics->writeBuffer(sizeof(SkeletalMeshData::RenderingInfo::BoneCBParam), &boneCBParam, mesh.renderingInfo.boneCB);
+
+                    Cutlass::ShaderResourceSet bufferSet, textureSet;
+
+                    bufferSet.bind(0, mesh.renderingInfo.sceneCB);
+                    bufferSet.bind(1, mesh.renderingInfo.boneCB);
+                    assert(material.textures.size() > 0 || !"material texture is empty!");
+
+                    cl.bind(mGeometryPipeline);
+                    cl.bind(0, bufferSet);
+                    for (std::size_t i = 0; i < mesh.meshes.size(); ++i)
+                    {
+                        auto& m = mesh.meshes[i];
+                        cl.bind(m.VB, m.IB);
+                        textureSet.bind(0, material.textures[i].handle);
+                        cl.bind(1, textureSet);
+                        cl.renderIndexed(m.indices.size());
+                    }
+                };
+
+                this->template forEach<SkeletalMeshData, MaterialData, RigidBodyData>(f);
             }
 
             cl.end();
@@ -501,30 +576,30 @@ namespace mall
             graphics->destroyBuffer(mDummyBoneCB);
             graphics->destroyBuffer(mSpriteIB);
 
-            this->template forEach<MeshData>(
-                [&](MeshData& mesh)
-                {
-                    graphics->destroyBuffer(mesh.renderingInfo.sceneCB);
-                });
+            // this->template forEach<MeshData>(
+            //     [&](MeshData& mesh)
+            //     {
+            //         graphics->destroyBuffer(mesh.renderingInfo.sceneCB);
+            //     });
 
-            this->template forEach<SkeletalMeshData>(
-                [&](SkeletalMeshData& skeletalMesh)
-                {
-                    graphics->destroyBuffer(skeletalMesh.renderingInfo.sceneCB);
-                    graphics->destroyBuffer(skeletalMesh.renderingInfo.boneCB);
-                });
+            // this->template forEach<SkeletalMeshData>(
+            //     [&](SkeletalMeshData& skeletalMesh)
+            //     {
+            //         graphics->destroyBuffer(skeletalMesh.renderingInfo.sceneCB);
+            //         graphics->destroyBuffer(skeletalMesh.renderingInfo.boneCB);
+            //     });
 
-            this->template forEach<SpriteData>(
-                [&](SpriteData& sprite)
-                {
-                    graphics->destroyBuffer(sprite.renderingInfo.spriteVB);
-                });
+            // this->template forEach<SpriteData>(
+            //     [&](SpriteData& sprite)
+            //     {
+            //         graphics->destroyBuffer(sprite.renderingInfo.spriteVB);
+            //     });
 
-            this->template forEach<TextData>(
-                [&](TextData& text)
-                {
-                    graphics->destroyBuffer(text.renderingInfo.spriteVB);
-                });
+            // this->template forEach<TextData>(
+            //     [&](TextData& text)
+            //     {
+            //         graphics->destroyBuffer(text.renderingInfo.spriteVB);
+            //     });
         }
 
     protected:

@@ -35,7 +35,6 @@ namespace mall
         {
         }
 
-    protected:
     };
 }  // namespace mall
 

@@ -17,6 +17,7 @@ namespace mall
     public:
         virtual void onInit()
         {
+
         }
 
         virtual void onUpdate()
@@ -117,8 +118,6 @@ namespace mall
                                     writeData[idx].a = 0;
                             }
                     }
-
-                    // stbi_write_png("fontsprite-test.png", bitmap_w, bitmap_h, 4, writeData.get(), 0);
 
                     auto& graphics = this->common().graphics;
 

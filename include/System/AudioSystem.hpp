@@ -2,7 +2,6 @@
 #define MALL_SYSTEM_AUDIOSYSTEM_HPP_
 
 #include <MVECS/ISystem.hpp>
-#include <chrono>
 
 #include "../ComponentData/SoundData.hpp"
 #include "../Engine.hpp"
@@ -17,6 +16,7 @@ namespace mall
     public:
         virtual void onInit()
         {
+            
         }
 
         virtual void onUpdate()
@@ -35,7 +35,6 @@ namespace mall
         {
         }
 
-    protected:
     };
 }  // namespace mall
 

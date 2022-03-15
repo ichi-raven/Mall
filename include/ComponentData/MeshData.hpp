@@ -61,6 +61,9 @@ namespace mall
         bool loaded;
         TUArray<Mesh> meshes;
 
+        // この行列は描画時にまず掛けられる
+        glm::mat4 defaultAxis;
+
         RenderingInfo renderingInfo;
     };
 }  // namespace mall

@@ -79,7 +79,7 @@ namespace mall
         return 0;
     }
 
-    void SkeletalMeshData::Skeleton::traverseNode(float timeInAnim, size_t animationIndex, const aiNode* node, glm::mat4 parentTransform)
+    void SkeletalMeshData::Skeleton::traverseNode(float timeInAnim, size_t animationIndex, const aiNode* node, const glm::mat4& parentTransform, const glm::mat4& defaultAxis)
     {
         // std::cerr << "\n\n\nprev parentTransform\n" << glm::to_string(parentTransform) << "\n";
 
@@ -182,6 +182,6 @@ namespace mall
         }
 
         for (size_t i = 0; i < node->mNumChildren; ++i)
-            traverseNode(timeInAnim, animationIndex, node->mChildren[i], globalTransform);
+            traverseNode(timeInAnim, animationIndex, node->mChildren[i], globalTransform, defaultAxis);
     }
 }  // namespace mall

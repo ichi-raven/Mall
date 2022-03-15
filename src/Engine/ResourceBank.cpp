@@ -58,14 +58,11 @@ namespace mall
 
     ResourceBank::~ResourceBank()
     {
-        mModelCacheMap.clear();
-        mSkeletalModelCacheMap.clear();
-        mTextureCacheMap.clear();
-
+        clearCacheAll();
         mpContext.reset();
     }
 
-    bool ResourceBank::load(std::string_view path, MeshData& meshData, MaterialData& materialData)
+    bool ResourceBank::create(std::string_view path, MeshData& meshData, MaterialData& materialData, const glm::mat4& defaultAxis)
     {
         auto&& strPath = std::string(path);
         auto&& iter    = mModelCacheMap.find(strPath);
@@ -93,7 +90,8 @@ namespace mall
             auto& model = iter->second;
 
             meshData.meshes.create(model.meshes.data(), model.meshes.size());
-            meshData.loaded = true;
+            meshData.loaded      = true;
+            meshData.defaultAxis = defaultAxis;
 
             for (auto& mesh : meshData.meshes)
             {
@@ -109,10 +107,21 @@ namespace mall
             materialData.textures.create(model.material.textures.data(), model.material.textures.size());
         }
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setUniformBuffer<MeshData::RenderingInfo::SceneCBParam>();
+            mpContext->createBuffer(bi, meshData.renderingInfo.sceneCB);
+        }
+
         return true;
     }
 
-    bool ResourceBank::load(std::string_view path, SkeletalMeshData& skeletalMeshData, MaterialData& materialData)
+    void ResourceBank::destroy(MeshData& meshData, MaterialData& materialData)
+    {
+        mpContext->destroyBuffer(meshData.renderingInfo.sceneCB);
+    }
+
+    bool ResourceBank::create(std::string_view path, SkeletalMeshData& skeletalMeshData, MaterialData& materialData, const glm::mat4& defaultAxis)
     {
         auto&& strPath = std::string(path);
         auto&& iter    = mSkeletalModelCacheMap.find(strPath);
@@ -140,10 +149,10 @@ namespace mall
             auto& model = iter->second;
 
             skeletalMeshData.meshes.create(model.meshes.data(), model.meshes.size());
-            skeletalMeshData.loaded = true;
+            skeletalMeshData.loaded      = true;
+            skeletalMeshData.defaultAxis = defaultAxis;
             skeletalMeshData.skeleton.create(&model.skeleton.value());
             skeletalMeshData.skeleton.get().scene.create(model.pScene.value());
-            skeletalMeshData.skeleton.get().defaultAxis   = glm::mat4(1.f);
             skeletalMeshData.skeleton.get().globalInverse = glm::mat4(1.f);
 
             skeletalMeshData.animationIndex = 0;
@@ -166,20 +175,35 @@ namespace mall
             }
         }
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::SceneCBParam>();
+            mpContext->createBuffer(bi, skeletalMeshData.renderingInfo.sceneCB);
+
+            bi.setUniformBuffer<SkeletalMeshData::RenderingInfo::BoneCBParam>();
+            mpContext->createBuffer(bi, skeletalMeshData.renderingInfo.boneCB);
+        }
+
         return true;
     }
 
-    bool ResourceBank::load(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite)
+    void ResourceBank::destroy(SkeletalMeshData& skeletalMeshData, MaterialData& material)
     {
-        return load(std::vector<std::string_view>(paths.begin(), paths.end()), name, sprite);
+        mpContext->destroyBuffer(skeletalMeshData.renderingInfo.sceneCB);
+        mpContext->destroyBuffer(skeletalMeshData.renderingInfo.boneCB);
     }
 
-    bool ResourceBank::load(std::string_view path, std::string_view name, SpriteData& sprite)
+    bool ResourceBank::create(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite)
     {
-        return load(std::vector<std::string_view>(1, path), name, sprite);
+        return create(std::vector<std::string_view>(paths.begin(), paths.end()), name, sprite);
     }
 
-    bool ResourceBank::load(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& spriteData)
+    bool ResourceBank::create(std::string_view path, std::string_view name, SpriteData& sprite)
+    {
+        return create(std::vector<std::string_view>(1, path), name, sprite);
+    }
+
+    bool ResourceBank::create(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& spriteData)
     {
         auto&& strName = std::string(name);
         auto&& iter    = mSpriteCacheMap.find(strName);
@@ -212,6 +236,12 @@ namespace mall
         spriteData.textures.create(iter->second.textures.data(), iter->second.textures.size());
         spriteData.index = 0;
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<SpriteData::RenderingInfo::Vertex>(4);
+            mpContext->createBuffer(bi, spriteData.renderingInfo.spriteVB);
+        }
+
         return true;
     }
 
@@ -225,10 +255,21 @@ namespace mall
         spriteData.textures.create(iter->second.textures.data(), iter->second.textures.size());
         spriteData.index = 0;
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<SpriteData::RenderingInfo::Vertex>(4);
+            mpContext->createBuffer(bi, spriteData.renderingInfo.spriteVB);
+        }
+
         return true;
     }
 
-    bool ResourceBank::load(std::string_view path, SoundData& soundData)
+    void ResourceBank::destroy(SpriteData& spriteData)
+    {
+        mpContext->destroyBuffer(spriteData.renderingInfo.spriteVB);
+    }
+
+    bool ResourceBank::create(std::string_view path, SoundData& soundData)
     {
         auto&& strPath = std::string(path);
         auto&& iter    = mSoundCacheMap.find(strPath);
@@ -426,7 +467,12 @@ namespace mall
         return true;
     }
 
-    bool ResourceBank::load(std::string_view path, TextData& text)
+    void ResourceBank::destroy(SoundData& soundData)
+    {
+        // do nothing for now
+    }
+
+    bool ResourceBank::create(std::string_view path, TextData& text)
     {
         auto&& strPath = std::string(path);
         auto&& iter    = mFontCacheMap.find(strPath);
@@ -470,7 +516,170 @@ namespace mall
         ti.setSRTex2D(1, 1, true);
         mpContext->createTexture(ti, text.texture);
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<TextData::RenderingInfo::Vertex>(4);
+            mpContext->createBuffer(bi, text.renderingInfo.spriteVB);
+        }
+
         return true;
+    }
+
+    void ResourceBank::destroy(TextData& text)
+    {
+        mpContext->destroyBuffer(text.renderingInfo.spriteVB);
+    }
+
+    void ResourceBank::clearCache(std::string_view pathOrName)
+    {
+        {
+            auto&& iter = mModelCacheMap.find(pathOrName.data());
+            if (iter != mModelCacheMap.end())
+            {
+                for (auto& m : iter->second.meshes)
+                {
+                    mpContext->destroyBuffer(m.VB);
+                    mpContext->destroyBuffer(m.IB);
+                }
+
+                iter->second.pScene.reset();
+
+                for (auto& t : iter->second.material.textures)
+                {
+                    mpContext->destroyTexture(t.handle);
+                }
+
+                mModelCacheMap.erase(iter);
+
+                return;
+            }
+        }
+
+        {
+            auto&& iter = mSkeletalModelCacheMap.find(pathOrName.data());
+            if (iter != mSkeletalModelCacheMap.end())
+            {
+                for (auto& m : iter->second.meshes)
+                {
+                    mpContext->destroyBuffer(m.VB);
+                    mpContext->destroyBuffer(m.IB);
+                }
+
+                iter->second.skeleton.reset();  // explicit
+                iter->second.pScene.reset();
+
+                for (auto& t : iter->second.material.textures)
+                {
+                    mpContext->destroyTexture(t.handle);
+                }
+
+                mSkeletalModelCacheMap.erase(iter);
+
+                return;
+            }
+        }
+
+        {
+            auto&& iter = mSpriteCacheMap.find(pathOrName.data());
+            if (iter != mSpriteCacheMap.end())
+            {
+                for (auto& t : iter->second.textures)
+                {
+                    mpContext->destroyTexture(t);
+                }
+
+                mSpriteCacheMap.erase(iter);
+
+                return;
+            }
+        }
+
+        {
+            auto&& iter = mSoundCacheMap.find(pathOrName.data());
+            if (iter != mSoundCacheMap.end())
+            {
+                Pa_CloseStream(iter->second.pStream);
+                mSoundCacheMap.erase(iter);
+                return;
+            }
+        }
+
+        {
+            auto&& iter = mFontCacheMap.find(pathOrName.data());
+
+            if (iter != mFontCacheMap.end())
+                mFontCacheMap.erase(iter);
+            return;
+        }
+    }
+
+    void ResourceBank::clearCacheAll()
+    {
+        {
+            for (auto& p : mModelCacheMap)
+            {
+                for (auto& m : p.second.meshes)
+                {
+                    mpContext->destroyBuffer(m.VB);
+                    mpContext->destroyBuffer(m.IB);
+                }
+
+                p.second.pScene.reset();
+
+                for (auto& t : p.second.material.textures)
+                {
+                    mpContext->destroyTexture(t.handle);
+                }
+            }
+
+            mModelCacheMap.clear();
+        }
+
+        {
+            for (auto& p : mSkeletalModelCacheMap)
+            {
+                for (auto& m : p.second.meshes)
+                {
+                    mpContext->destroyBuffer(m.VB);
+                    mpContext->destroyBuffer(m.IB);
+                }
+
+                p.second.skeleton.reset();  // explicit
+                p.second.pScene.reset();
+
+                for (auto& t : p.second.material.textures)
+                {
+                    mpContext->destroyTexture(t.handle);
+                }
+            }
+
+            mSkeletalModelCacheMap.clear();
+        }
+
+        {
+            for (auto& p : mSpriteCacheMap)
+            {
+                for (auto& t : p.second.textures)
+                {
+                    mpContext->destroyTexture(t);
+                }
+            }
+
+            mSpriteCacheMap.clear();
+        }
+
+        {
+            for (auto& p : mSoundCacheMap)
+            {
+                Pa_CloseStream(p.second.pStream);
+            }
+
+            mSoundCacheMap.clear();
+        }
+
+        {
+            mFontCacheMap.clear();
+        }
     }
 
     void ResourceBank::processNode(const aiNode* node, Model& model_out)

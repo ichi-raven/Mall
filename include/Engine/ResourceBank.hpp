@@ -28,23 +28,35 @@ namespace mall
 
         ~ResourceBank();
 
-        bool load(std::string_view path, MeshData& mesh, MaterialData& material);
+        bool create(std::string_view path, MeshData& mesh, MaterialData& material, const glm::mat4& defaultAxis = glm::mat4(1.f));
 
-        bool load(std::string_view path, SkeletalMeshData& skeletalMesh, MaterialData& material);
+        void destroy(MeshData& mesh, MaterialData& material);
 
-        bool load(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& sprite);
+        bool create(std::string_view path, SkeletalMeshData& skeletalMesh, MaterialData& material, const glm::mat4& defaultAxis = glm::mat4(1.f));
 
-        bool load(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite);
+        void destroy(SkeletalMeshData& mesh, MaterialData& material);
 
-        bool load(std::string_view path, std::string_view name, SpriteData& sprite);
+        bool create(const std::vector<std::string_view>& paths, std::string_view name, SpriteData& sprite);
+
+        bool create(const std::initializer_list<std::string_view>& paths, std::string_view name, SpriteData& sprite);
+
+        bool create(std::string_view path, std::string_view name, SpriteData& sprite);
 
         bool getSprite(std::string_view name, SpriteData& sprite);
 
-        bool load(std::string_view path, SoundData& sound);
+        void destroy(SpriteData& sprite);
 
-        bool load(std::string_view path, TextData& text);
+        bool create(std::string_view path, SoundData& sound);
 
-        bool unload(std::string_view name);
+        void destroy(SoundData& sound);
+
+        bool create(std::string_view path, TextData& text);
+
+        void destroy(TextData& text);
+
+        void clearCache(std::string_view pathOrName);
+
+        void clearCacheAll();
 
     private:
         struct VertexBoneData
@@ -89,11 +101,7 @@ namespace mall
 
             int RIFFFileSize;  // RIFFヘッダから読んだファイルサイズ
             int PCMDataSize;   //実際のデータサイズ
-
-            ~Sound()
-            {
-                Pa_CloseStream(pStream);
-            }
+            
         };
 
         struct Font

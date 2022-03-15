@@ -44,7 +44,10 @@ namespace mall
             {
             }
 
-            unsigned char r, g, b, a;
+            unsigned char r;
+            unsigned char g;
+            unsigned char b;
+            unsigned char a;
         };
 
         void setText(std::wstring_view wstr, std::uint32_t width, std::uint32_t height, glm::vec4 color = glm::vec4(1.f, 1.f, 1.f, 1.f));

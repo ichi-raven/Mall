@@ -11,12 +11,8 @@
 #include <glm/glm.hpp>
 
 #include "../include/AppInfo.hpp"
-#include "../include/System/AudioSystem.hpp"
-#include "../include/System/AnimateSystem.hpp"
-#include "../include/System/RenderSystem.hpp"
+#include "../include/System/EngineBasicSystem.hpp"
 #include "../include/System/SampleSystem.hpp"
-#include "../include/System/TransformSystem.hpp"
-#include "../include/System/TextSystem.hpp"
 
 namespace mall
 {
@@ -33,6 +29,7 @@ namespace mall
 
         app.common().audio        = std::make_unique<Audio>();
         app.common().graphics     = std::make_unique<Graphics>(pContext);
+        app.common().physics      = std::make_unique<Physics>();
         app.common().input        = std::make_unique<Input>(pContext);
         app.common().resourceBank = std::make_unique<ResourceBank>(pContext);
     }
@@ -50,10 +47,10 @@ namespace mall
             app.common().deltaTime = times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
             std::cerr << "now frame : " << frame << "\n";
             std::cerr << "FPS : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
-            // std::system("clear");
         }
 
         app.common().input->update();
+        app.common().physics->update(app.common().deltaTime);
         app.common().graphics->update();
         app.update();
 
@@ -64,6 +61,7 @@ namespace mall
 
         return (1. / (std::accumulate(times.begin(), times.end(), 0.) / 1. * sampleNum));
     }
+
 }  // namespace mall
 
 int main()
@@ -76,15 +74,10 @@ int main()
     mall::initialize<WorldKey, Common>(appName, app);
 
     auto& titleWorld = app.add(WorldKey::eTitle);
-    titleWorld.addSystems<
-        mall::RenderSystem<WorldKey, Common>,
-        mall::TransformSystem<WorldKey, Common>,
-        mall::AnimateSystem<WorldKey, Common>,
-        mall::AudioSystem<WorldKey, Common>,
-        mall::TextSystem<WorldKey, Common>,
-        SampleSystem>();
 
-    app.common().graphics->createWindow(width, height, appName, true, 3, false);
+    titleWorld.addSystems<mall::EngineBasicSystem<WorldKey, Common>, SampleSystem>();
+
+    app.common().graphics->createWindow(width, height, appName, false, 3, false);
 
     app.start(WorldKey::eTitle);
 

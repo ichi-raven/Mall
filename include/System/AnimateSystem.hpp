@@ -17,14 +17,12 @@ namespace mall
     public:
         virtual void onInit()
         {
-            mPrev = mNow = std::chrono::high_resolution_clock::now();
             mNowSecond = 0;
         }
 
         virtual void onUpdate()
         {
-            mNow                   = std::chrono::high_resolution_clock::now();
-            const float& deltaTime = static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(mNow - mPrev).count() / 1000000.);
+            const double& deltaTime = this->common().deltaTime;
 
             auto&& lmdUpdateSkeleton = [&](SkeletalMeshData& skeletalMesh)
             {
@@ -43,12 +41,11 @@ namespace mall
                     updateTime = 25.f;  //?
                 }
 
-                skeleton.traverseNode(fmod(mNowSecond * updateTime, scene.mAnimations[skeletalMesh.animationIndex]->mDuration), skeletalMesh.animationIndex, scene.mRootNode, glm::mat4(1.f));
+                skeleton.traverseNode(fmod(mNowSecond * updateTime, scene.mAnimations[skeletalMesh.animationIndex]->mDuration), skeletalMesh.animationIndex, scene.mRootNode, glm::mat4(1.f), skeletalMesh.defaultAxis);
             };
 
             this->template forEach<SkeletalMeshData>(lmdUpdateSkeleton);
 
-            mPrev = mNow;
             mNowSecond += deltaTime;
         }
 
@@ -57,8 +54,6 @@ namespace mall
         }
 
     protected:
-        std::chrono::high_resolution_clock::time_point mPrev;
-        std::chrono::high_resolution_clock::time_point mNow;
         float mNowSecond;
     };
 }  // namespace mall

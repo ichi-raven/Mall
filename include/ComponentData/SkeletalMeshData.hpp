@@ -22,12 +22,11 @@ namespace mall
 
         struct Skeleton
         {
-            void traverseNode(float timeInAnim, size_t animationIndex, const aiNode* node, glm::mat4 parentTransform);
+            void traverseNode(float timeInAnim, size_t animationIndex, const aiNode* node, const glm::mat4& parentTransform, const glm::mat4& defaultAxis);
 
             std::vector<Bone> bones;
             TUPointer<const aiScene> scene;
             std::unordered_map<std::string, uint32_t> boneMap;
-            glm::mat4 defaultAxis;
             glm::mat4 globalInverse;
         };
 
