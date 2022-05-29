@@ -67,7 +67,7 @@ inline float4 lambert(float3 normal, float3 lightDir, float4 lightColor)
 
 inline float4 phong(float3 camera, float3 pos, float3 lightDir, float3 normal, float4 lightColor)
 {
-    return lightColor * pow(max(dot(normalize(camera - pos), reflect(lightDir, normal)) * -1.f, 0), 2.f);
+    return lightColor * pow(max(dot(normalize(camera - pos), reflect(lightDir, normal)) * -1.f, 0), 1.7f);
 }
 
 float4 PSMain(VSOutput input) : SV_Target0
@@ -111,10 +111,10 @@ float4 PSMain(VSOutput input) : SV_Target0
         lightAll += (lightDiffuse + lightSpecular);
     }
 
-    lightAll.x = min(lightAll.x, 1.3f);
-    lightAll.y = min(lightAll.y, 1.3f);
-    lightAll.z = min(lightAll.z, 1.3f);
-    lightAll.w = min(lightAll.w, 1.0f);
+    // lightAll.x = min(lightAll.x, 1.3f);
+    // lightAll.y = min(lightAll.y, 1.3f);
+    // lightAll.z = min(lightAll.z, 1.3f);
+    // lightAll.w = min(lightAll.w, 1.0f);
 
     float4 outColor = float4((albedo * lightAll).xyz, albedo.w);
 

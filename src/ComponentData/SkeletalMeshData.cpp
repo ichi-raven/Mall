@@ -1,4 +1,4 @@
-#include "../../include/ComponentData/SkeletalMeshData.hpp"
+#include "../../include/Mall/ComponentData/SkeletalMeshData.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>

@@ -1,4 +1,6 @@
-#include "../../include/Engine/Physics.hpp"
+#include "../../include/Mall/Engine/Physics.hpp"
+
+#include <iostream>
 
 namespace mall
 {
@@ -21,7 +23,7 @@ namespace mall
 
         mDynamicsWorld = std::unique_ptr<btDiscreteDynamicsWorld>(new btDiscreteDynamicsWorld(mDispatcher.get(), mOverlappingPairCache.get(), mSolver.get(), mCollisionConfiguration.get()));
 
-        mDynamicsWorld->setGravity(btVector3(0, 10, 0));
+        mDynamicsWorld->setGravity(btVector3(0, -10, 0));
     }
 
     void Physics::changeGravity(const float x, const float y, const float z)
@@ -55,24 +57,28 @@ namespace mall
         rigidBody.pRigidBody = std::unique_ptr<btRigidBody>(new btRigidBody(rbInfo));
 
         // add the body to the dynamics world
-        auto&& rb = mRigidBodies.emplace(mCollisionObjectID++, std::move(rigidBody)).first->second;
+        auto&& rb = mRigidBodies.emplace(mCollisionObjectID, std::move(rigidBody)).first->second;
 
         mDynamicsWorld->addRigidBody(rb.pRigidBody.get());
         rigidBodyData.rigidBody.create(rb.pRigidBody.get());
-        rigidBodyData.objectID = mCollisionObjectID;
+        rigidBodyData.objectID = mCollisionObjectID++;
+        rigidBodyData.isStatic = (mass == 0.f);
     }
 
     void Physics::destroy(RigidBodyData& rigidBodyData)
     {
-        auto&& rigidBody = mRigidBodies.at(rigidBodyData.objectID);
+        auto&& iter = mRigidBodies.find(rigidBodyData.objectID);
 
-        mDynamicsWorld->removeCollisionObject(rigidBody.pRigidBody.get());
+        if (iter == mRigidBodies.end())
+            return;
 
-        rigidBody.pCollisionShape.reset();
-        rigidBody.pMotionState.reset();
-        rigidBody.pRigidBody.reset();
+        mDynamicsWorld->removeCollisionObject(iter->second.pRigidBody.get());
 
-        mRigidBodies.erase(rigidBodyData.objectID);
+        iter->second.pCollisionShape.reset();
+        iter->second.pMotionState.reset();
+        iter->second.pRigidBody.reset();
+
+        mRigidBodies.erase(iter);
 
         rigidBodyData.objectID = 0;
     }

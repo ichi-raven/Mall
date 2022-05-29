@@ -1,4 +1,4 @@
-#include "../../include/ComponentData/CameraData.hpp"
+#include "../../include/Mall/ComponentData/CameraData.hpp"
 
 namespace mall
 {

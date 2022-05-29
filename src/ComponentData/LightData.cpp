@@ -1,4 +1,4 @@
-#include "../../include/ComponentData/LightData.hpp"
+#include "../../include/Mall/ComponentData/LightData.hpp"
 
 namespace mall
 {

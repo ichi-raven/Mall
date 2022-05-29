@@ -1,4 +1,4 @@
-#include "../../include/Engine/ResourceBank.hpp"
+#include "../../include/Mall/Engine/ResourceBank.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -83,17 +83,8 @@ namespace mall
             }
 
             processNode(model.pScene.value()->mRootNode, model);
-        }
-        std::cerr << "all data has been loaded!\n";
 
-        {  // write to component data
-            auto& model = iter->second;
-
-            meshData.meshes.create(model.meshes.data(), model.meshes.size());
-            meshData.loaded      = true;
-            meshData.defaultAxis = defaultAxis;
-
-            for (auto& mesh : meshData.meshes)
+            for (auto& mesh : model.meshes)
             {
                 Cutlass::BufferInfo bi;
                 bi.setVertexBuffer<MeshData::Vertex>(mesh.vertices.size());
@@ -103,6 +94,16 @@ namespace mall
                 mpContext->createBuffer(bi, mesh.IB);
                 mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
             }
+
+            std::cerr << "new data loaded!\n";
+        }
+
+        {  // write to component data
+            auto& model = iter->second;
+
+            meshData.meshes.create(model.meshes.data(), model.meshes.size());
+            meshData.loaded      = true;
+            meshData.defaultAxis = defaultAxis;
 
             materialData.textures.create(model.material.textures.data(), model.material.textures.size());
         }
@@ -142,8 +143,9 @@ namespace mall
 
             model.skeleton = SkeletalMeshData::Skeleton();
             processNode(model.pScene.value()->mRootNode, model);
+
+            std::cerr << "new data loaded!\n";
         }
-        std::cerr << "all data has been loaded!\n";
 
         {  // write to component data
             auto& model = iter->second;
@@ -278,191 +280,203 @@ namespace mall
             iter         = mSoundCacheMap.emplace(strPath, Sound()).first;
             Sound& sound = iter->second;
 
-            FILE* fp;
-            fp = fopen(path.data(), "rb");
-
-            if (!fp)
+            auto res = sound.wavData.load(path.data());
+            if (0 != res)
             {
-                assert(!"failed to open file!");
+                std::cerr << res << " : result\n";
+                assert(!"failed to load sound data!");
                 return false;
             }
 
-            std::string readbuf;  //適当
-            readbuf.resize(4);
-            int readbuf2;  //適当なバッファ
+            // FILE* fp;
+            // fp = fopen(path.data(), "rb");
 
-            // RIFFを読む
-            fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"RIFF"がかえる
-            if (readbuf != "RIFF")
-            {
-                assert(!"failed to load!");
-                return false;
-            }
+            // if (!fp)
+            // {
+            //     assert(!"failed to open file!");
+            //     return false;
+            // }
 
-            fread(&sound.RIFFFileSize, 4, 1, fp);  // 4byte読む　これ以降のファイルサイズ (ファイルサイズ - 8)が返る
-            // WAVEチャンク
-            fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"WAVE"がかえる
-            if (readbuf != "WAVE")
-            {
-                assert(!"failed to load!");
-                return false;
-            }
+            // std::string readbuf;  //適当
+            // readbuf.resize(4);
+            // int readbuf2;  //適当なバッファ
 
-            //フォーマット定義
-            fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"fmt "がかえる
-            if (readbuf != "fmt ")
-            {
-                assert(!"failed to load!");
-                return false;
-            }
+            // // RIFFを読む
+            // fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"RIFF"がかえる
+            // if (readbuf != "RIFF")
+            // {
+            //     assert(!"failed to load!");
+            //     return false;
+            // }
 
-            // mFormatチャンクのバイト数
-            fread(&readbuf2, 4, 1, fp);  // 4byte読む　リニアPCMならば16が返る
+            // fread(&sound.RIFFFileSize, 4, 1, fp);  // 4byte読む　これ以降のファイルサイズ (ファイルサイズ - 8)が返る
+            // // WAVEチャンク
+            // fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"WAVE"がかえる
+            // if (readbuf != "WAVE")
+            // {
+            //     assert(!"failed to load!");
+            //     return false;
+            // }
 
-            //データ1
-            fread(&sound.format.format_id, 2, 1, fp);        // 2byte読む　リニアPCMならば1が返る
-            fread(&sound.format.channel, 2, 1, fp);          // 2byte読む　モノラルならば1が、ステレオならば2が返る
-            fread(&sound.format.sampling_rate, 4, 1, fp);    // 4byte読む　44.1kHzならば44100が返る
-            fread(&sound.format.bytes_per_sec, 4, 1, fp);    // 4byte読む　44.1kHz 16bit ステレオならば44100×2×2 = 176400
-            fread(&sound.format.block_size, 2, 1, fp);       // 2byte読む　16bit ステレオならば2×2 = 4
-            fread(&sound.format.bits_per_sample, 2, 1, fp);  // 2byte読む　16bitならば16
+            // //フォーマット定義
+            // fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"fmt "がかえる
+            // if (readbuf != "fmt ")
+            // {
+            //     assert(!"failed to load!");
+            //     return false;
+            // }
 
-            //拡張部分は存在しないものとして扱う
-            if (sound.format.format_id != 1)
-            {
-                assert(!"failed to load!");
-                return false;
-            }
+            // // mFormatチャンクのバイト数
+            // fread(&readbuf2, 4, 1, fp);  // 4byte読む　リニアPCMならば16が返る
 
-            // dataチャンク
-            fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"data"がかえる
-            if (readbuf != "data")
-            {
-                std::cout << readbuf << "\n";
-                assert(!"failed to load audio file!");
-                return false;
-            }
+            // //データ1
+            // fread(&sound.format.format_id, 2, 1, fp);        // 2byte読む　リニアPCMならば1が返る
+            // fread(&sound.format.channel, 2, 1, fp);          // 2byte読む　モノラルならば1が、ステレオならば2が返る
+            // fread(&sound.format.sampling_rate, 4, 1, fp);    // 4byte読む　44.1kHzならば44100が返る
+            // fread(&sound.format.bytes_per_sec, 4, 1, fp);    // 4byte読む　44.1kHz 16bit ステレオならば44100×2×2 = 176400
+            // fread(&sound.format.block_size, 2, 1, fp);       // 2byte読む　16bit ステレオならば2×2 = 4
+            // fread(&sound.format.bits_per_sample, 2, 1, fp);  // 2byte読む　16bitならば16
 
-            fread(&sound.PCMDataSize, 4, 1, fp);  // 4byte読む　実効データのバイト数がかえる
+            // //拡張部分は存在しないものとして扱う
+            // if (sound.format.format_id != 1)
+            // {
+            //     assert(!"failed to load!");
+            //     return false;
+            // }
 
-            //以下、上のデータサイズ分だけブロックサイズ単位でデータ読み出し
-            if (sound.format.bits_per_sample == 8)
-            {
-                // 8ビット
-                sound.data_8bit.resize(sound.PCMDataSize + 1);                                               // reserveだと範囲外エラー
-                fread(&sound.data_8bit[0], 1, (size_t)2 * sound.PCMDataSize / sound.format.block_size, fp);  // vectorに1byteずつ詰めていく
-            }
-            else if (sound.format.bits_per_sample == 16)
-            {
-                // 16ビット
-                sound.data_16bit.resize(sound.PCMDataSize / 2 + 2);                                           // reserveだと範囲外エラー
-                fread(&sound.data_16bit[0], 2, (size_t)2 * sound.PCMDataSize / sound.format.block_size, fp);  // vectorに2byteずつ詰めていく
-            }
+            // // dataチャンク
+            // fread((char*)readbuf.c_str(), 4, 1, fp);  // 4byte読む　"data"がかえる
+            // if (readbuf != "data")
+            // {
+            //     std::cout << readbuf << "\n";
+            //     assert(!"failed to load audio file!");
+            //     return false;
+            // }
 
-            fclose(fp);
-            // pastream作成---------------------------------------
-            int (*callback)(const void* inputBuffer, void* outputBuffer,
-                            unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
-                            PaStreamCallbackFlags statusFlags, void* userData) =
-                [](
-                    const void* inputBuffer,
-                    void* outputBuffer,
-                    unsigned long framesPerBuffer,
-                    const PaStreamCallbackTimeInfo* timeInfo,
-                    PaStreamCallbackFlags statusFlags,
-                    void* userData) -> int
-            {
-                SoundData* data = (SoundData*)userData;  // userDataをWAVE*型へキャストしておく
-                float* out      = (float*)outputBuffer;  //同じくoutputもキャスト
-                (void)timeInfo;
-                (void)statusFlags;  //この辺はよく分からんけど使わないらしい（未調査)
-                //フレーム単位で回す
-                for (int i = 0; i < (int)framesPerBuffer; i++)
-                {
-                    //インターリーブ方式でL,R,L,R,...と記録されてる（WAVも同じ）ので、
-                    // outputに同じ感じで受け渡してやる
-                    for (int c = 0; c < (int)data->format.channel; ++c)
-                    {
-                        //チャンネル数分だけ回す
-                        //残りの音声データがなく、ループフラグが立ってない場合終了
-                        bool end = false;
-                        if (!data->loaded)
-                            end = true;
+            // fread(&sound.PCMDataSize, 4, 1, fp);  // 4byte読む　実効データのバイト数がかえる
 
-                        if (data->format.bits_per_sample == 8)
-                        {
-                            end = data->bufPos >= (int)data->data_8bit.size();
-                        }
-                        else if (data->format.bits_per_sample == 16)
-                        {
-                            end = data->bufPos >= (int)data->data_16bit.size();
-                        }
+            // //以下、上のデータサイズ分だけブロックサイズ単位でデータ読み出し
+            // if (sound.format.bits_per_sample == 8)
+            // {
+            //     // 8ビット
+            //     sound.data_8bit.resize(sound.PCMDataSize + 1);                                               // reserveだと範囲外エラー
+            //     fread(&sound.data_8bit[0], 1, (size_t)2 * sound.PCMDataSize / sound.format.block_size, fp);  // vectorに1byteずつ詰めていく
+            // }
+            // else if (sound.format.bits_per_sample == 16)
+            // {
+            //     // 16ビット
+            //     sound.data_16bit.resize(sound.PCMDataSize / 2 + 2);                                           // reserveだと範囲外エラー
+            //     fread(&sound.data_16bit[0], 2, (size_t)2 * sound.PCMDataSize / sound.format.block_size, fp);  // vectorに2byteずつ詰めていく
+            // }
 
-                        if (end && !data->loopFlag)
-                        {
-                            return (int)paComplete;
-                        }
-                        *out++ = data->volumeRate * (data->readData<float>()) / 32767.0f;  //-1.0～1.0に正規化(内部ではshortで保持してるので,floatに変換)
-                    }
-                }
+            // fclose(fp);
+            // // pastream作成---------------------------------------
+            // int (*callback)(const void* inputBuffer, void* outputBuffer,
+            //                 unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
+            //                 PaStreamCallbackFlags statusFlags, void* userData) =
+            //     [](
+            //         const void* inputBuffer,
+            //         void* outputBuffer,
+            //         unsigned long framesPerBuffer,
+            //         const PaStreamCallbackTimeInfo* timeInfo,
+            //         PaStreamCallbackFlags statusFlags,
+            //         void* userData) -> int
+            // {
+            //     SoundData* data = (SoundData*)userData;  // userDataをWAVE*型へキャストしておく
+            //     float* out      = (float*)outputBuffer;  //同じくoutputもキャスト
+            //     (void)timeInfo;
+            //     (void)statusFlags;  //この辺はよく分からんけど使わないらしい（未調査)
+            //     //フレーム単位で回す
+            //     for (int i = 0; i < (int)framesPerBuffer; i++)
+            //     {
+            //         //インターリーブ方式でL,R,L,R,...と記録されてる（WAVも同じ）ので、
+            //         // outputに同じ感じで受け渡してやる
+            //         for (int c = 0; c < (int)data->format.channel; ++c)
+            //         {
+            //             //チャンネル数分だけ回す
+            //             //残りの音声データがなく、ループフラグが立ってない場合終了
+            //             bool end = false;
+            //             if (!data->loaded)
+            //                 end = true;
 
-                return paContinue;
-            };
+            //             if (data->format.bits_per_sample == 8)
+            //             {
+            //                 end = data->bufPos >= (int)data->data_8bit.size();
+            //             }
+            //             else if (data->format.bits_per_sample == 16)
+            //             {
+            //                 end = data->bufPos >= (int)data->data_16bit.size();
+            //             }
 
-            PaStreamParameters outputParameters;
-            {
-                //アウトプットデバイスの構築(マイク使わない場合はインプットデバイス使わない)
-                outputParameters.device                    = Pa_GetDefaultOutputDevice();                                         //デフォデバイスを使う
-                outputParameters.channelCount              = sound.format.channel;                                                //フォーマット情報を使う
-                outputParameters.sampleFormat              = paFloat32;                                                           // paFloat32(PortAudio組み込み)型
-                outputParameters.suggestedLatency          = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;  //レイテンシの設定
-                outputParameters.hostApiSpecificStreamInfo = NULL;                                                                //よくわからん
-            }
+            //             if (end && !data->loopFlag)
+            //             {
+            //                 return (int)paComplete;
+            //             }
+            //             *out++ = data->volumeRate * (data->readData<float>()) / 32767.0f;  //-1.0～1.0に正規化(内部ではshortで保持してるので,floatに変換)
+            //         }
+            //     }
 
-            PaStream* stream;
-            auto err = Pa_OpenStream(
-                &stream,                       //なんか再生するべきストリーム情報が帰ってくる
-                NULL,                          //マイクとかのインプットないのでNULL
-                &outputParameters,             //アウトプット設定
-                44100,                         // mFormat.sampling_rate,  //44100Hz
-                paFramesPerBufferUnspecified,  // 1サンプルあたりのバッファ長(自動)
-                paNoFlag,                      //ストリーミングの設定らしい　とりあえず0
-                callback,                      //コールバック関数（上のラムダ）
-                &soundData);                   // wavファイルデータを渡す（ちなみにどんなデータでも渡せる）
+            //     return paContinue;
+            // };
 
-            sound.pStream = stream;
+            // PaStreamParameters outputParameters;
+            // {
+            //     //アウトプットデバイスの構築(マイク使わない場合はインプットデバイス使わない)
+            //     outputParameters.device                    = Pa_GetDefaultOutputDevice();                                         //デフォデバイスを使う
+            //     outputParameters.channelCount              = sound.format.channel;                                                //フォーマット情報を使う
+            //     outputParameters.sampleFormat              = paFloat32;                                                           // paFloat32(PortAudio組み込み)型
+            //     outputParameters.suggestedLatency          = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;  //レイテンシの設定
+            //     outputParameters.hostApiSpecificStreamInfo = NULL;                                                                //よくわからん
+            // }
 
-            if (err != paNoError)
-            {  //エラー処理
-                Pa_Terminate();
-                std::cerr << "error : " << err << "\n";
-                std::cerr << sound.format.format_id << "\n";
-                std::cerr << sound.format.channel << "\n";
-                std::cerr << sound.format.sampling_rate << "\n";
-                std::cerr << sound.format.bytes_per_sec << "\n";
-                std::cerr << sound.format.block_size << "\n";
-                std::cerr << sound.format.bits_per_sample << "\n";
-                assert(!"failed to open stream!");
-                return false;
-            }
+            // PaStream* stream;
+            // auto err = Pa_OpenStream(
+            //     &stream,                       //なんか再生するべきストリーム情報が帰ってくる
+            //     NULL,                          //マイクとかのインプットないのでNULL
+            //     &outputParameters,             //アウトプット設定
+            //     44100,                         // mFormat.sampling_rate,  //44100Hz
+            //     paFramesPerBufferUnspecified,  // 1サンプルあたりのバッファ長(自動)
+            //     paNoFlag,                      //ストリーミングの設定らしい　とりあえず0
+            //     callback,                      //コールバック関数（上のラムダ）
+            //     &soundData);                   // wavファイルデータを渡す（ちなみにどんなデータでも渡せる）
+
+            // sound.pStream = stream;
+
+            // if (err != paNoError)
+            // {  //エラー処理
+            //     Pa_Terminate();
+            //     std::cerr << "error : " << err << "\n";
+            //     std::cerr << sound.format.format_id << "\n";
+            //     std::cerr << sound.format.channel << "\n";
+            //     std::cerr << sound.format.sampling_rate << "\n";
+            //     std::cerr << sound.format.bytes_per_sec << "\n";
+            //     std::cerr << sound.format.block_size << "\n";
+            //     std::cerr << sound.format.bits_per_sample << "\n";
+            //     assert(!"failed to open stream!");
+            //     return false;
+            // }
         }
 
-        soundData.loaded = true;
-        soundData.ppStream.create(&iter->second.pStream);
-        soundData.volumeRate = 1.f;
-        soundData.format     = iter->second.format;
-
-        if (!iter->second.data_8bit.empty())
-            soundData.data_8bit.create(iter->second.data_8bit.data(), iter->second.data_8bit.size());
-        else
-            soundData.data_16bit.create(iter->second.data_16bit.data(), iter->second.data_16bit.size());
-
-        soundData.RIFFFileSize    = iter->second.RIFFFileSize;
-        soundData.PCMDataSize     = iter->second.PCMDataSize;
-        soundData.bufPos          = 0;
-        soundData.loopFlag        = true;
+        soundData.loaded          = true;
         soundData.playFlag        = false;
         soundData.playingDuration = 0;
+        soundData.volumeRate      = 1.f;
+        soundData.runningHandle   = -1;
+        soundData.pWavData.create(&iter->second.wavData);
+
+        // soundData.ppStream.create(&iter->second.pStream);
+        // soundData.volumeRate = 1.f;
+        // soundData.format     = iter->second.format;
+
+        // if (!iter->second.data_8bit.empty())
+        //     soundData.data_8bit.create(iter->second.data_8bit.data(), iter->second.data_8bit.size());
+        // else
+        //     soundData.data_16bit.create(iter->second.data_16bit.data(), iter->second.data_16bit.size());
+
+        // soundData.RIFFFileSize    = iter->second.RIFFFileSize;
+        // soundData.PCMDataSize     = iter->second.PCMDataSize;
+        // soundData.bufPos          = 0;
+        // soundData.loopFlag        = true;
 
         return true;
     }
@@ -497,12 +511,12 @@ namespace mall
             size = ftell(fontFile);       /* Get the file size (end of file - head of file, in bytes) */
             fseek(fontFile, 0, SEEK_SET); /* Reset the file pointer to the file header */
 
-            font.fontBuffer = std::unique_ptr<unsigned char>(new unsigned char[size * sizeof(unsigned char)]);
-            fread(font.fontBuffer.get(), size, 1, fontFile);
+            font.fontBuffer = new unsigned char[size * sizeof(unsigned char)];
+            fread(font.fontBuffer, size, 1, fontFile);
             fclose(fontFile);
 
             /* Initialize font */
-            if (!stbtt_InitFont(&font.fontInfo, font.fontBuffer.get(), 0))
+            if (!stbtt_InitFont(&font.fontInfo, font.fontBuffer, 0))
             {
                 assert(!"stb init font failed");
                 return false;
@@ -598,7 +612,7 @@ namespace mall
             auto&& iter = mSoundCacheMap.find(pathOrName.data());
             if (iter != mSoundCacheMap.end())
             {
-                Pa_CloseStream(iter->second.pStream);
+                // Pa_CloseStream(iter->second.pStream);
                 mSoundCacheMap.erase(iter);
                 return;
             }
@@ -606,6 +620,7 @@ namespace mall
 
         {
             auto&& iter = mFontCacheMap.find(pathOrName.data());
+            delete[] iter->second.fontBuffer;
 
             if (iter != mFontCacheMap.end())
                 mFontCacheMap.erase(iter);
@@ -669,15 +684,18 @@ namespace mall
         }
 
         {
-            for (auto& p : mSoundCacheMap)
-            {
-                Pa_CloseStream(p.second.pStream);
-            }
+            // for (auto& p : mSoundCacheMap)
+            // {
+            //     Pa_CloseStream(p.second.pStream);
+            // }
 
             mSoundCacheMap.clear();
         }
 
         {
+            for (auto& p : mFontCacheMap)
+                delete[] p.second.fontBuffer;
+
             mFontCacheMap.clear();
         }
     }
