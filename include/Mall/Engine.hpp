@@ -31,6 +31,15 @@ namespace mall
 
         double deltaTime;
         std::uint32_t frame;
+
+        virtual ~Engine()
+        {
+            input.reset();
+            audio.reset();
+            graphics.reset();
+            physics.reset();
+            resourceBank.reset();
+        }
     };
 
     template <typename Key, typename Common, typename = std::enable_if_t<std::is_base_of_v<Engine, Common>>>
@@ -66,15 +75,19 @@ namespace mall
 
         app.common().input->update();
 
-        app.update();
 
         app.common().physics->update(app.common().deltaTime);
         app.common().graphics->update();
 
+        app.update();
+        
         {  //フレーム, 時刻更新
             ++app.common().frame;
             prev = now;
         }
+
+        if (app.common().graphics->shouldClose())
+            app.dispatchEnd();
     }
 
 }  // namespace mall

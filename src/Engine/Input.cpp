@@ -2,11 +2,18 @@
 
 #include <Cutlass/Event.hpp>
 
+#include <iostream>
+
 namespace mall
 {
     Input::Input(const std::shared_ptr<Cutlass::Context>& context)
         : mpContext(context)
     {
+    }
+
+    Input::~Input()
+    {
+        std::cerr << "Input system shut down\n";
     }
 
     bool Input::getKey(const Cutlass::Key key) const

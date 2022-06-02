@@ -30,6 +30,11 @@ namespace mall
         mpContext->createTextureFromFile("resources/textures/texture.png", mDebugTex);
     }
 
+    Graphics::~Graphics()
+    {
+        std::cerr << "Graphics Engine shut down\n";
+    }
+
     uint32_t Graphics::createWindow(const uint32_t width, const uint32_t height, const char* windowName, bool fullScreen, const uint32_t frameCount, const bool vsync)
     {
         Cutlass::WindowInfo wi(width, height, frameCount, windowName, fullScreen, vsync);
@@ -405,4 +410,10 @@ namespace mall
             mpContext->execute(window.presentCommandBuffer);
         }
     }
+
+    bool Graphics::shouldClose()
+    {
+        return mpContext->shouldClose();
+    }
+
 }  // namespace mall

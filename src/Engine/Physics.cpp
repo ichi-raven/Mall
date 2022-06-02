@@ -26,6 +26,16 @@ namespace mall
         mDynamicsWorld->setGravity(btVector3(0, -10, 0));
     }
 
+    Physics::~Physics()
+    {
+        destroyAll();
+        mDynamicsWorld.reset();
+        mOverlappingPairCache.reset();
+        mDispatcher.reset();
+        mCollisionConfiguration.reset();
+        std::cerr << "Physics Engine shut down\n";
+    }
+
     void Physics::changeGravity(const float x, const float y, const float z)
     {
         mDynamicsWorld->setGravity(btVector3(x, y, z));

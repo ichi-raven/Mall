@@ -53,6 +53,7 @@ namespace mall
 
         virtual void onEnd()
         {
+
         }
     };
 }  // namespace mall

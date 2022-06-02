@@ -39,8 +39,8 @@ namespace mall
                 glm::mat4 proj;
                 float receiveShadow;
                 float lighting;
-                uint useBone;
-                uint padding;
+                std::uint32_t useBone;
+                std::uint32_t padding;
             };
 
             constexpr static std::size_t MaxBoneNum = 128;

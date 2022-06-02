@@ -5,6 +5,11 @@
 #include <glm/glm.hpp>
 #include <Cutlass/Buffer.hpp>
 
+#pragma once
+#include <../um/windows.h>
+#undef near
+#undef far
+
 namespace mall
 {
     struct CameraData : public mvecs::IComponentData

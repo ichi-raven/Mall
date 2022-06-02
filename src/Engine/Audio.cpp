@@ -17,6 +17,7 @@ namespace mall
         // Pa_Terminate();
         mSoloud.stopAll();
         mSoloud.deinit();
+        std::cerr << "Audio Engine shut down\n";
     }
 
     void Audio::play(SoundData& sound)

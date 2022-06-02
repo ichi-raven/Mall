@@ -1,6 +1,7 @@
 #ifndef MALL_ENGINE_PHYSICS_HPP_
 #define MALL_ENGINE_PHYSICS_HPP_
 
+
 #include "bullet/btBulletDynamicsCommon.h"
 
 #include <memory>
@@ -13,6 +14,8 @@ namespace mall
     {
     public:
         Physics();
+
+        ~Physics();
 
         void changeGravity(const float x, const float y, const float z);
 

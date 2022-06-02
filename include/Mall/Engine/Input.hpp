@@ -11,6 +11,8 @@ namespace mall
     public:
         Input(const std::shared_ptr<Cutlass::Context>& context);
 
+        ~Input();
+
         bool getKey(const Cutlass::Key key) const;
 
         void getCursorPos(double& x, double& y) const;

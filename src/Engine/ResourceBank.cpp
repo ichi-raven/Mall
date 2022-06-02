@@ -5,6 +5,9 @@
 #include <iostream>
 #include <regex>
 
+#define STBI_WRITE_NO_STDIO
+#define STBI_MSC_SECURE_CRT
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb/stb_truetype.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -60,6 +63,7 @@ namespace mall
     {
         clearCacheAll();
         mpContext.reset();
+        std::cerr << "Resource Bank shut down\n";
     }
 
     bool ResourceBank::create(std::string_view path, MeshData& meshData, MaterialData& materialData, const glm::mat4& defaultAxis)
@@ -500,7 +504,9 @@ namespace mall
             long int size = 0;
             // unsigned char *fontBuffer = NULL;
 
-            FILE* fontFile = fopen(path.data(), "rb");
+            FILE* fontFile = NULL;
+            fopen_s(&fontFile, path.data(), "rb");
+            assert(fontFile);
             if (fontFile == NULL)
             {
                 assert(!"failed to open font file!");

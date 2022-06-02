@@ -4,6 +4,9 @@
 #include <Cutlass/Cutlass.hpp>
 #include <MVECS/ISystem.hpp>
 #include <MVECS/World.hpp>
+
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
@@ -534,6 +537,7 @@ namespace mall
             //     {
             //         graphics->destroyBuffer(text.renderingInfo.spriteVB);
             //     });
+
         }
 
     protected:

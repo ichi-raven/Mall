@@ -51,6 +51,7 @@ namespace mall
 
         virtual void onEnd()
         {
+
         }
 
     protected:

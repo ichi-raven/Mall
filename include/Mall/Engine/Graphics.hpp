@@ -32,6 +32,8 @@ namespace mall
 
         Graphics(const std::shared_ptr<Cutlass::Context>& context, const std::vector<Cutlass::WindowInfo>& windows);
 
+        ~Graphics();
+
         uint32_t createWindow(const uint32_t width, const uint32_t height, const char* windowName, bool fullScreen = false, const uint32_t frameCount = 3, const bool vsync = false);
         uint32_t createWindow(const Cutlass::WindowInfo& wi);
 
@@ -84,6 +86,8 @@ namespace mall
         void writeCommandPostpass(const uint32_t postPassID, const Cutlass::CommandList& cl, const uint32_t windowID = 0);
 
         void update();
+
+        bool shouldClose();
 
     private:
         struct RenderPass

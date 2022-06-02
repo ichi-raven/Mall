@@ -2,6 +2,8 @@
 #define MALL_COMPONENTDATA_TRANSFORMDATA_HPP_
 
 #include <MVECS/IComponentData.hpp>
+
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>

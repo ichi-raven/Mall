@@ -5,8 +5,11 @@
 
 #include "../Utility.hpp"
 
-#include <Mall/ThirdParty/SoLoud/soloud.h>
+//#ifdef _WIN32
+//#define WITH_XAUDIO2
+//#endif
 
+#include <Mall/ThirdParty/SoLoud/soloud.h>
 
 namespace mall
 {
