@@ -30,10 +30,17 @@ namespace mall
         }
 #endif
 
-        sound.playFlag = true;
+        if (!sound.playFlag)
+        {
+            sound.playFlag = true;
 
-        sound.runningHandle = mSoloud.play(sound.pWavData.get(), sound.volumeRate);
-        mSoloud.setPause(sound.runningHandle, false);
+            sound.runningHandle = mSoloud.play(sound.pWavData.get(), sound.volumeRate);
+        }
+        else
+            mSoloud.setPause(sound.runningHandle, false);
+
+        mSoloud.setLooping(sound.runningHandle, false);
+
 
         // auto err       = Pa_StartStream(sound.ppStream.get());
         // if (err != paNoError)
@@ -51,9 +58,53 @@ namespace mall
         // }
     }
 
+    void Audio::playClocked(SoundData& sound, double deltaTime)
+    {
+
+#ifdef _DEBUG
+        if (!sound.loaded)
+        {
+            assert(!"did not loaded data!");
+            return;
+        }
+#endif
+
+        if (!sound.playFlag)
+        {
+            sound.playFlag = true;
+            sound.runningHandle = mSoloud.playClocked(deltaTime, sound.pWavData.get(), sound.volumeRate);
+        }
+        else
+            mSoloud.setPause(sound.runningHandle, false);
+
+        mSoloud.setLooping(sound.runningHandle, false);
+
+    }
+
+    void Audio::playBackground(SoundData& sound)
+    {
+#ifdef _DEBUG
+        if (!sound.loaded)
+        {
+            assert(!"did not loaded data!");
+            return;
+        }
+#endif
+
+        if (!sound.playFlag)
+        {
+            sound.playFlag = true;
+            sound.runningHandle = mSoloud.playBackground(sound.pWavData.get(), sound.volumeRate);
+        }
+        else
+            mSoloud.setPause(sound.runningHandle, false);
+
+        mSoloud.setLooping(sound.runningHandle, false);
+    }
+
     void Audio::stop(SoundData& sound)
     {
-        sound.playFlag = false;
+        //sound.playFlag = false;
         mSoloud.setPause(sound.runningHandle, true);
 
         // Pa_StopStream(sound.ppStream.get());
@@ -63,6 +114,8 @@ namespace mall
     {
         sound.playingDuration = 0;
         mSoloud.stop(sound.runningHandle);
+        mSoloud.seek(sound.runningHandle, 0);
+        sound.playFlag = false;
     }
 
 }  // namespace mall

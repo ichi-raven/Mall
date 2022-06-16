@@ -24,6 +24,10 @@ namespace mall
 
         void play(SoundData& soundData);
 
+        void playClocked(SoundData& soundData, double deltaTime);
+
+        void playBackground(SoundData& soundData);
+
         void stop(SoundData& soundData);
 
         void reset(SoundData& soundData);

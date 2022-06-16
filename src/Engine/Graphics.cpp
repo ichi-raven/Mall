@@ -351,15 +351,19 @@ namespace mall
         {
             case DefaultRenderPass::eGeometry:
                 res = mpContext->updateCommandBuffer(cl, window.geometryPass.command);
+                //std::cerr << "geom\n";
                 break;
             case DefaultRenderPass::eLighting:
                 res = mpContext->updateCommandBuffer(cl, window.lightingPass.command);
+                //std::cerr << "light\n";
                 break;
             case DefaultRenderPass::eForward:
                 res = mpContext->updateCommandBuffer(cl, window.forwardPass.command);
+                //std::cerr << "forward\n";
                 break;
             case DefaultRenderPass::eSprite:
                 res = mpContext->updateCommandBuffer(cl, window.spritePass.command);
+                //std::cerr << "sprite\n";
                 break;
             default:
                 assert(!"invalid default render pass!");
@@ -399,15 +403,20 @@ namespace mall
                 mpContext->execute(pass.second.command);
 
             mpContext->execute(window.geometryPass.command);
+            //std::cerr << "geom\n";
             mpContext->execute(window.lightingPass.command);
+            //std::cerr << "light\n";
             mpContext->execute(window.forwardPass.command);
+            //std::cerr << "forward\n";
             mpContext->execute(window.spritePass.command);
+            //std::cerr << "sprite\n";
 
             for (const auto& pass : window.postPasses)
                 mpContext->execute(pass.second.command);
 
             //mpContext->updateCommandBuffer(window.presentCommandLists, window.presentCommandBuffer);
             mpContext->execute(window.presentCommandBuffer);
+            //std::cerr << "present\n";
         }
     }
 

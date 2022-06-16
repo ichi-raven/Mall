@@ -148,6 +148,20 @@ namespace mall
             model.skeleton = SkeletalMeshData::Skeleton();
             processNode(model.pScene.value()->mRootNode, model);
 
+            for (auto& mesh : model.meshes)
+            {
+                Cutlass::BufferInfo bi;
+                bi.setVertexBuffer<MeshData::Vertex>(mesh.vertices.size());
+                mpContext->createBuffer(bi, mesh.VB);
+                mpContext->writeBuffer(mesh.vertices.size() * sizeof(MeshData::Vertex), mesh.vertices.data(), mesh.VB);
+                bi.setIndexBuffer<std::uint32_t>(mesh.indices.size());
+                mpContext->createBuffer(bi, mesh.IB);
+                mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
+                std::cerr << "mesh vertices : " << mesh.vertices.size() << "\n";
+                std::cerr << "mesh indices : " << mesh.indices.size() << "\n";
+
+            }
+
             std::cerr << "new data loaded!\n";
         }
 
@@ -162,18 +176,9 @@ namespace mall
             skeletalMeshData.skeleton.get().globalInverse = glm::mat4(1.f);
 
             skeletalMeshData.animationIndex = 0;
-            skeletalMeshData.timeScale      = 0;
+            skeletalMeshData.timeScale      = 1.f;
 
-            for (auto& mesh : skeletalMeshData.meshes)
-            {
-                Cutlass::BufferInfo bi;
-                bi.setVertexBuffer<MeshData::Vertex>(mesh.vertices.size());
-                mpContext->createBuffer(bi, mesh.VB);
-                mpContext->writeBuffer(mesh.vertices.size() * sizeof(MeshData::Vertex), mesh.vertices.data(), mesh.VB);
-                bi.setIndexBuffer<std::uint32_t>(mesh.indices.size());
-                mpContext->createBuffer(bi, mesh.IB);
-                mpContext->writeBuffer(mesh.indices.size() * sizeof(std::uint32_t), mesh.indices.data(), mesh.IB);
-            }
+           
 
             if (!model.material.textures.empty())
             {
@@ -287,7 +292,7 @@ namespace mall
             auto res = sound.wavData.load(path.data());
             if (0 != res)
             {
-                std::cerr << res << " : result\n";
+                std::cerr << "result : " << res << "\n";
                 assert(!"failed to load sound data!");
                 return false;
             }

@@ -264,6 +264,7 @@ namespace mall
             Cutlass::CommandList cl;
             bool debug = false;
             //cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry), {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
+            cl.clear();
             cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry));
 
             {  // mesh
@@ -335,6 +336,7 @@ namespace mall
                         textureSet.bind(0, material.textures[i].handle);
                         cl.bind(1, textureSet);
                         cl.renderIndexed(m.indices.size());
+                        debug = true;
                     }
                 };
 
@@ -346,7 +348,8 @@ namespace mall
             // {
             //     std::cerr << static_cast<int>(cmd.first) << "\n";
             // }
-            if (debug)
+            //std::cerr << "A UB : " << cl.getUniformBufferCount() << ", CT : " << cl.getCombinedTextureCount() << "\n";
+            //if (debug)
                 graphics->writeCommand(Graphics::DefaultRenderPass::eGeometry, cl);
 
             {  // sprite

@@ -35,10 +35,10 @@ namespace mall
         virtual ~Engine()
         {
             input.reset();
+            resourceBank.reset();
+            physics.reset();
             audio.reset();
             graphics.reset();
-            physics.reset();
-            resourceBank.reset();
         }
     };
 
@@ -76,10 +76,10 @@ namespace mall
         app.common().input->update();
 
 
+        app.update();
         app.common().physics->update(app.common().deltaTime);
         app.common().graphics->update();
 
-        app.update();
         
         {  //フレーム, 時刻更新
             ++app.common().frame;
