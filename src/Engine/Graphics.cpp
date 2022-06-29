@@ -92,7 +92,9 @@ namespace mall
         {  // initialize each pass
 
             {  // geometry
-                auto& rp = window.geometryPass;
+                //auto& rp = window.geometryPass;
+                RenderPass rp;
+                rp.passName = std::string("geometry");
                 Cutlass::RenderPassInfo rpi({window.gBuffer.albedo, window.gBuffer.normal, window.gBuffer.worldPos, window.gBuffer.metalic, window.gBuffer.roughness}, window.depthBuffer);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
@@ -100,10 +102,14 @@ namespace mall
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);
+
+                window.insertRenderPass(static_cast<int>(DefaultRenderPass::eGeometry), rp);
             }
 
             {  // lighting
-                auto& rp = window.lightingPass;
+                //auto& rp = window.lightingPass;
+                RenderPass rp;
+                rp.passName = std::string("lighting");
                 Cutlass::RenderPassInfo rpi(window.finalRT);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
@@ -112,10 +118,14 @@ namespace mall
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);
+
+                window.insertRenderPass(static_cast<int>(DefaultRenderPass::eLighting), rp);
             }
 
             {  // forward
-                auto& rp = window.forwardPass;
+                //auto& rp = window.forwardPass;
+                RenderPass rp;
+                rp.passName = std::string("forward");
                 Cutlass::RenderPassInfo rpi(window.finalRT, window.depthBuffer, true);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
@@ -123,10 +133,14 @@ namespace mall
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);
+
+                window.insertRenderPass(static_cast<int>(DefaultRenderPass::eForward), rp);
             }
 
             {  // sprite
-                auto& rp = window.spritePass;
+                //auto& rp = window.spritePass;
+                RenderPass rp;
+                rp.passName = std::string("sprite");
                 Cutlass::RenderPassInfo rpi(window.finalRT, true);
                 mpContext->createRenderPass(rpi, rp.renderPass);
 
@@ -134,6 +148,8 @@ namespace mall
                 cl.begin(rp.renderPass);
                 cl.end();
                 mpContext->createCommandBuffer(cl, rp.command);
+
+                window.insertRenderPass(static_cast<int>(DefaultRenderPass::eSprite), rp);
             }
 
             {  // present
@@ -274,6 +290,11 @@ namespace mall
         return window.gBuffer;
     }
 
+    int Graphics::getExecutionOrder(const DefaultRenderPass passID) const
+    {
+        return static_cast<int>(passID);
+    }
+
     Cutlass::HRenderPass Graphics::getRenderPass(const DefaultRenderPass passID, const uint32_t windowID) const
     {
         assert(windowID < mWindows.size() || !"invalid window ID!");
@@ -282,16 +303,20 @@ namespace mall
         switch (passID)
         {
             case DefaultRenderPass::eGeometry:
-                return window.geometryPass.renderPass;
+                return window.renderPasses[window.geometryPassIndex].second.renderPass;
+                //std::cerr << "geom\n";
                 break;
             case DefaultRenderPass::eLighting:
-                return window.lightingPass.renderPass;
+                return window.renderPasses[window.lightingPassIndex].second.renderPass;
+                //std::cerr << "light\n";
                 break;
             case DefaultRenderPass::eForward:
-                return window.forwardPass.renderPass;
+                return window.renderPasses[window.forwardPassIndex].second.renderPass;
+                //std::cerr << "forward\n";
                 break;
             case DefaultRenderPass::eSprite:
-                return window.spritePass.renderPass;
+                return window.renderPasses[window.spritePassIndex].second.renderPass;
+                //std::cerr << "sprite\n";
                 break;
             default:
                 assert(!"invalid default render pass!");
@@ -299,7 +324,63 @@ namespace mall
         }
     }
 
-    Cutlass::HRenderPass Graphics::getPrepass(const uint32_t prepassID, const uint32_t windowID) const
+    Cutlass::HRenderPass Graphics::getRenderPass(const int executionOrder, const uint32_t windowID) const
+    {
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+
+        assert(executionOrder >= window.renderPasses.size() || !"invalid execution order!");
+
+        return window.renderPasses[window.findRenderPass(executionOrder)].second.renderPass;
+    }
+
+    void Graphics::addRenderPass(const Cutlass::RenderPassInfo& rpi, const int executionOrder, std::string_view passName, const uint32_t windowID)
+    {
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+
+        RenderPass renderPass;
+
+        renderPass.passName = std::string(passName);
+
+        mpContext->createRenderPass(rpi, renderPass.renderPass);
+
+        Cutlass::CommandList cl;
+        cl.begin(renderPass.renderPass);
+        cl.end();
+
+        mpContext->createCommandBuffer(cl, renderPass.command);
+
+        window.insertRenderPass(executionOrder, renderPass);
+
+        // 各固定パスのインデックスをずらさなければならない
+        if (executionOrder <= static_cast<int>(DefaultRenderPass::eSprite))
+        {
+            ++window.spritePassIndex;
+            if (executionOrder <= static_cast<int>(DefaultRenderPass::eForward))
+            {
+                ++window.forwardPassIndex;
+                if (executionOrder <= static_cast<int>(DefaultRenderPass::eLighting))
+                {
+                    ++window.lightingPassIndex;
+                    if (executionOrder <= static_cast<int>(DefaultRenderPass::eGeometry))
+                        ++window.geometryPassIndex;
+                }
+            }   
+        }
+    }
+
+    std::pair<int, Cutlass::HRenderPass> Graphics::findRenderPass(std::string_view passName, const uint32_t windowID) const
+    {
+        assert(windowID < mWindows.size() || !"invalid window ID!");
+        auto& window = mWindows[windowID];
+
+        for (const auto& pass : window.renderPasses)
+            if (pass.second.passName == passName)
+                return std::make_pair(pass.first, pass.second.renderPass);
+    }
+
+    /*Cutlass::HRenderPass Graphics::getPrepass(const uint32_t prepassID, const uint32_t windowID) const
     {
         assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
@@ -339,7 +420,7 @@ namespace mall
         mpContext->createRenderPass(rpi, window.postPasses[executionOrder].renderPass);
 
         return executionOrder;
-    }
+    }*/
 
     void Graphics::writeCommand(const DefaultRenderPass passID, const Cutlass::CommandList& cl, const uint32_t windowID)
     {
@@ -350,19 +431,19 @@ namespace mall
         switch (passID)
         {
             case DefaultRenderPass::eGeometry:
-                res = mpContext->updateCommandBuffer(cl, window.geometryPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.renderPasses[window.geometryPassIndex].second.command);
                 //std::cerr << "geom\n";
                 break;
             case DefaultRenderPass::eLighting:
-                res = mpContext->updateCommandBuffer(cl, window.lightingPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.renderPasses[window.lightingPassIndex].second.command);
                 //std::cerr << "light\n";
                 break;
             case DefaultRenderPass::eForward:
-                res = mpContext->updateCommandBuffer(cl, window.forwardPass.command);
+                res = mpContext->updateCommandBuffer(cl, window.renderPasses[window.forwardPassIndex].second.command);
                 //std::cerr << "forward\n";
                 break;
             case DefaultRenderPass::eSprite:
-                res = mpContext->updateCommandBuffer(cl, window.spritePass.command);
+                res = mpContext->updateCommandBuffer(cl, window.renderPasses[window.spritePassIndex].second.command);
                 //std::cerr << "sprite\n";
                 break;
             default:
@@ -373,45 +454,61 @@ namespace mall
         assert(res == Cutlass::Result::eSuccess || !"failed to write command buffer!");
     }
 
-    void Graphics::writeCommandPrepass(const uint32_t prepassID, const Cutlass::CommandList& cl, const uint32_t windowID)
+    void Graphics::writeCommand(const int executionOrder, const Cutlass::CommandList& cl, const uint32_t windowID)
     {
         assert(windowID < mWindows.size() || !"invalid window ID!");
         auto& window = mWindows[windowID];
 
-        auto&& iter = window.prePasses.find(prepassID);
-        assert(iter != window.prePasses.end() || !"invalid prepass ID!");
+        std::size_t index = window.findRenderPass(executionOrder);
+        assert(index < window.renderPasses.size() || !"the renderpass that have this execution order is not registered");
 
-        mpContext->updateCommandBuffer(cl, iter->second.command);
+        auto res = mpContext->updateCommandBuffer(cl, window.renderPasses[index].second.command);
+        assert(res == Cutlass::Result::eSuccess || !"failed to write command buffer!");
     }
 
-    void Graphics::writeCommandPostpass(const uint32_t postpassID, const Cutlass::CommandList& cl, const uint32_t windowID)
-    {
-        assert(windowID < mWindows.size() || !"invalid window ID!");
-        auto& window = mWindows[windowID];
 
-        auto&& iter = window.postPasses.find(postpassID);
-        assert(iter != window.postPasses.end() || !"invalid postpass ID!");
+    //void Graphics::writeCommandPrepass(const uint32_t prepassID, const Cutlass::CommandList& cl, const uint32_t windowID)
+    //{
+    //    assert(windowID < mWindows.size() || !"invalid window ID!");
+    //    auto& window = mWindows[windowID];
 
-        mpContext->updateCommandBuffer(cl, iter->second.command);
-    }
+    //    auto&& iter = window.prePasses.find(prepassID);
+    //    assert(iter != window.prePasses.end() || !"invalid prepass ID!");
+
+    //    mpContext->updateCommandBuffer(cl, iter->second.command);
+    //}
+
+    //void Graphics::writeCommandPostpass(const uint32_t postpassID, const Cutlass::CommandList& cl, const uint32_t windowID)
+    //{
+    //    assert(windowID < mWindows.size() || !"invalid window ID!");
+    //    auto& window = mWindows[windowID];
+
+    //    auto&& iter = window.postPasses.find(postpassID);
+    //    assert(iter != window.postPasses.end() || !"invalid postpass ID!");
+
+    //    mpContext->updateCommandBuffer(cl, iter->second.command);
+    //}
 
     void Graphics::update()
     {
         for (const auto& window : mWindows)
         {
-            for (const auto& pass : window.prePasses)
-                mpContext->execute(pass.second.command);
+            //for (const auto& pass : window.prePasses)
+            //    mpContext->execute(pass.second.command);
 
-            mpContext->execute(window.geometryPass.command);
-            //std::cerr << "geom\n";
-            mpContext->execute(window.lightingPass.command);
-            //std::cerr << "light\n";
-            mpContext->execute(window.forwardPass.command);
-            //std::cerr << "forward\n";
-            mpContext->execute(window.spritePass.command);
-            //std::cerr << "sprite\n";
+            //mpContext->execute(window.geometryPass.command);
+            ////std::cerr << "geom\n";
+            //mpContext->execute(window.lightingPass.command);
+            ////std::cerr << "light\n";
+            //mpContext->execute(window.forwardPass.command);
+            ////std::cerr << "forward\n";
+            //mpContext->execute(window.spritePass.command);
+            ////std::cerr << "sprite\n";
 
-            for (const auto& pass : window.postPasses)
+            //for (const auto& pass : window.postPasses)
+            //    mpContext->execute(pass.second.command);
+
+            for (const auto& pass : window.renderPasses)
                 mpContext->execute(pass.second.command);
 
             //mpContext->updateCommandBuffer(window.presentCommandLists, window.presentCommandBuffer);
@@ -424,5 +521,41 @@ namespace mall
     {
         return mpContext->shouldClose();
     }
+
+    Graphics::RenderPass& Graphics::Window::insertRenderPass(int executionOrder, const RenderPass& renderPass)
+    {
+        auto&& pair = std::pair<int, RenderPass>(executionOrder, renderPass);
+        auto&& iter = std::lower_bound(renderPasses.begin(), renderPasses.end(), pair, [](const std::pair<int, RenderPass>& left, const std::pair<int, RenderPass>& right)
+            { return left.first < right.first; });
+        if (iter == renderPasses.end())
+        {
+            renderPasses.emplace_back(pair);
+            iter = renderPasses.end() - 1;
+        }
+        else
+            iter = renderPasses.insert(iter, pair);
+
+        return iter->second;
+    }
+
+    std::size_t Graphics::Window::findRenderPass(int executionOrder) const
+    {
+        auto lower = renderPasses.begin();
+        auto upper = renderPasses.end() - 1;
+        while (lower <= upper)
+        {
+            auto mid = lower + (upper - lower) / 2;
+            if (executionOrder == mid->first)
+                return std::distance(renderPasses.begin(), mid);
+            else if (executionOrder < mid->first)
+                upper = mid - 1;
+            else
+                lower = mid + 1;
+        }
+
+        assert(!"renderpass was not found!");
+        return std::numeric_limits<std::size_t>::max();
+    }
+
 
 }  // namespace mall

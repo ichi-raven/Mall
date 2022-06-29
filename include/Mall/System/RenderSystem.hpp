@@ -57,11 +57,16 @@ namespace mall
         {
             std::unique_ptr<Graphics>& graphics = this->common().graphics;
 
+            mGeometryPass = graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry);
+            mLightingPass = graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting);
+            mSpritePass = graphics->getRenderPass(Graphics::DefaultRenderPass::eSprite);
+
+
             {
                 Cutlass::GraphicsPipelineInfo gpi(
                     Cutlass::Shader("resources/shaders/deferred/GBuffer_vert.spv"),
                     Cutlass::Shader("resources/shaders/deferred/GBuffer_frag.spv"),
-                    graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry),
+                    mGeometryPass,
                     Cutlass::DepthStencilState::eDepth,
                     Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
 
@@ -72,7 +77,7 @@ namespace mall
                 Cutlass::GraphicsPipelineInfo gpi(
                     Cutlass::Shader("resources/shaders/deferred/Lighting_vert.spv"),
                     Cutlass::Shader("resources/shaders/deferred/Lighting_frag.spv"),
-                    graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting),
+                    mLightingPass,
                     Cutlass::DepthStencilState::eNone,
                     Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise),
                     Cutlass::Topology::eTriangleStrip);
@@ -84,7 +89,7 @@ namespace mall
                 Cutlass::GraphicsPipelineInfo gpi(
                     Cutlass::Shader("resources/shaders/sprite/Sprite_vert.spv"),
                     Cutlass::Shader("resources/shaders/sprite/Sprite_frag.spv"),
-                    graphics->getRenderPass(Graphics::DefaultRenderPass::eSprite),
+                    mSpritePass,
                     Cutlass::DepthStencilState::eNone,
                     Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise),
                     Cutlass::Topology::eTriangleList,
@@ -189,7 +194,7 @@ namespace mall
                 cl.barrier(gBuffer.metalic);
                 cl.barrier(gBuffer.roughness);
 
-                cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eLighting), {1.f, 0}, {1.f, 0, 0, 1.f});
+                cl.begin(mLightingPass, {1.f, 0}, {1.f, 0, 0, 1.f});
                 cl.bind(mLightingPipeline);
                 cl.bind(0, bufferSet);
                 cl.bind(1, textureSet);
@@ -263,9 +268,9 @@ namespace mall
 
             Cutlass::CommandList cl;
             bool debug = false;
-            //cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry), {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
+            //cl.begin(mGeometryPass, {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
             cl.clear();
-            cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eGeometry));
+            cl.begin(mGeometryPass);
 
             {  // mesh
                 std::function<void(MeshData&, MaterialData&)> f =
@@ -359,7 +364,7 @@ namespace mall
                 bufferSet.bind(0, mSpriteCB);
 
                 cl.clear();
-                cl.begin(graphics->getRenderPass(Graphics::DefaultRenderPass::eSprite), {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
+                cl.begin(mSpritePass, {1.f, 0}, {0.2f, 0.2f, 0.2f, 0});
                 {
                     std::function<void(SpriteData&, TransformData&)> f =
                         [&](SpriteData& sprite, TransformData& transform)
@@ -544,6 +549,10 @@ namespace mall
         }
 
     protected:
+        Cutlass::HRenderPass mGeometryPass;
+        Cutlass::HRenderPass mLightingPass;
+        Cutlass::HRenderPass mSpritePass;
+
         Cutlass::HGraphicsPipeline mGeometryPipeline;
         Cutlass::HGraphicsPipeline mLightingPipeline;
         Cutlass::HGraphicsPipeline mSpritePipeline;
